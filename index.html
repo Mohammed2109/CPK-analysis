@@ -170,10 +170,16 @@ details.cap-card[open]>summary{border-bottom:1px solid var(--border)}
 .mbar .axes label{flex-direction:row;align-items:center;gap:5px;font-size:13.5px;font-weight:600;color:var(--ink);padding:6px 10px;border:1px solid var(--border);border-radius:7px;cursor:pointer;background:var(--surface)}
 .mbar .axes label:has(input:checked){background:var(--ink);color:var(--page);border-color:var(--ink)}
 .mbar .axes input{display:none}
-.mgrid{overflow:auto;border:1px solid var(--border);border-radius:10px;max-height:520px;background:var(--surface)}
+.mgrid{overflow:auto;border:1px solid var(--border);border-radius:10px;height:min(520px,70vh);background:var(--surface);contain:strict}
+.mgrid:has(.empty){height:auto;contain:content}
+.ccard,.find{content-visibility:auto;contain-intrinsic-size:auto 360px}
+details.cap-card{content-visibility:auto;contain-intrinsic-size:auto 52px}
+#reviewCard .tablewrap{contain:strict;height:min(420px,60vh)}
+@media print{.ccard,.find,details.cap-card{content-visibility:visible}}
 .mgrid table{width:auto;border-collapse:separate;border-spacing:0}
-.mgrid th,.mgrid td{padding:0;border-bottom:1px solid var(--border);border-right:1px solid var(--border);text-align:center}
-.mgrid thead th{position:sticky;background:var(--surface-2);z-index:2;padding:6px 8px;font-size:12.5px}
+.mgrid th,.mgrid td{padding:0;border-bottom:1px solid var(--border);border-right:1px solid var(--border);text-align:center;height:29px;box-sizing:border-box;overflow:hidden}
+.mgrid tr.gap td{border:0;height:auto}
+.mgrid thead th{position:sticky;background:var(--surface-2);z-index:2;padding:6px 4px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mgrid thead tr:first-child th{top:0}
 .mgrid th.rl,.mgrid td.rl{position:sticky;left:0;background:var(--surface-2);z-index:1;text-align:left;padding:0 10px;font-size:12px;font-weight:600;color:var(--ink-2);min-width:96px;white-space:nowrap}
 .mgrid thead th.rl{z-index:3}
@@ -183,7 +189,7 @@ details.cap-card[open]>summary{border-bottom:1px solid var(--border)}
 .mgrid tr.hdr td{background:var(--surface-2)}
 .mgrid tr.hdr input{font-family:var(--sans);font-weight:700;text-align:center}
 .mgrid thead th{font-family:var(--mono);color:var(--muted);font-weight:500}
-.mgrid input{width:84px;border:0;background:transparent;padding:6px 8px;font-family:var(--mono);font-size:12.5px;color:var(--ink);text-align:right;border-radius:0}
+.mgrid input{width:100%;height:28px;box-sizing:border-box;border:0;background:transparent;padding:6px 8px;font-family:var(--mono);font-size:12.5px;color:var(--ink);text-align:right;border-radius:0}
 .mgrid input:focus{outline:2px solid var(--accent);outline-offset:-2px;background:var(--surface)}
 .mgrid input:disabled{color:var(--muted)}
 .mgrid input.calc::placeholder{color:var(--accent);opacity:.8}
@@ -675,7 +681,7 @@ function mergeChars(list){
 /* ================= UI state ================= */
 const $=s=>document.querySelector(s);
 const cssv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-let CHARS=[]; let RESULTS=[]; let OPT={}; let charts=[]; let SOURCES=[];
+let CHARS=[]; let RESULTS=[]; let OPT={}; let charts=[]; let SOURCES=[]; let IO=null;
 if(window.pdfjsLib){pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';}
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2000);}
 function msg(t,cls){const e=$('#loadMsg');e.className='msg show '+cls;e.innerHTML=t;}
@@ -781,7 +787,7 @@ function manLimits(c){
   if(parseNum(c.lsl)!=null)lsl=parseNum(c.lsl); if(parseNum(c.usl)!=null)usl=parseNum(c.usl);
   return {lsl,usl};
 }
-function tpCalc(c,i){const d=[];for(const k of MAN.cols){if(k===c||String(k.pt).trim()!==String(c.pt).trim()||!/^[xyz]$/i.test(String(k.ax).trim()))continue;const nom=parseNum(k.nom),v=parseNum(k.v[i]);if(nom==null||v==null)continue;d.push(v-nom);}
+function tpCalc(c,i){if(!TPG)buildGroups();const d=[];for(const k of (TPG.get(String(c.pt).trim())||[])){const nom=parseNum(k.nom),v=parseNum(k.v[i]);if(nom==null||v==null)continue;d.push(v-nom);}
   return d.length>=2?2*Math.sqrt(d.reduce((s,x)=>s+x*x,0)):null;}
 $('#mAdd').addEventListener('click',()=>{
   let name=$('#mPoint').value.trim(); const cnt=Math.max(1,Math.min(200,parseInt($('#mCount').value)||1));
@@ -795,40 +801,61 @@ $('#mMore').addEventListener('click',()=>{MAN.parts+=5;saveMan();renderMan();});
 $('#mParts').addEventListener('change',e=>{MAN.parts=Math.max(1,Math.min(1000,parseInt(e.target.value)||MAN.parts));saveMan();renderMan();syncMan();});
 $('#mClear').addEventListener('click',()=>{if($('#mClear').dataset.arm!=='1'){$('#mClear').dataset.arm='1';$('#mClear').textContent='Click again to clear';setTimeout(()=>{$('#mClear').dataset.arm='';$('#mClear').textContent='Clear table';},3000);return;}
   MAN={parts:10,cols:[]};saveMan();$('#mClear').dataset.arm='';$('#mClear').textContent='Clear table';renderMan();});
-function renderMan(){
-  $('#mParts').value=MAN.parts;
-  const C=MAN.cols.length?MAN.cols:[]; const show=[...C]; const extra=Math.max(3,8-show.length); // spare empty columns to paste into
-  const all=[...show,...Array.from({length:extra},()=>null)];
-  let h='<table><thead><tr><th class="rl">Column</th>'+all.map((c,ci)=>`<th>${ci+1}${c?`<button class="x" data-del="${ci}" title="Remove column" aria-label="Remove column ${ci+1}">×</button>`:''}</th>`).join('')+'</tr></thead><tbody>';
-  rowKeys().forEach((f,ri)=>{
-    const spec=typeof f!=='number';
-    h+=`<tr class="${spec?'spec':''} ${f==='usl'?'sep':''} ${f==='pt'||f==='ax'?'hdr':''}"><td class="rl">${spec?SPECLAB[f]:'Part '+(f+1)}</td>`;
-    all.forEach((c,ci)=>{const dis=c&&cellDisabled(c,f);let val=c?getCell(c,f):'';if(dis)val=f==='nom'?'0':'';
-      const ph=c&&isTP(c)&&f==='ut'?'Tol ⌀':'';
-      h+=`<td><input ${f==='pt'||f==='ax'?'':'inputmode="decimal"'} data-r="${ri}" data-c="${ci}" value="${esc(val)}" ${dis?'disabled':''} placeholder="${ph}"></td>`;});
-    h+='</tr>';
-  });
-  $('#mGrid').innerHTML=h+'</tbody></table>';
-  $('#mGrid').querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>{MAN.cols.splice(+b.dataset.del,1);saveMan();renderMan();syncMan();}));
-  paintMan();
+const RH=29, CW=96, LW=112; let WIN={pr0:0,pr1:0,c0:0,c1:0,nC:0,nP:0}; let manRaf=0;
+function allCols(){const extra=Math.max(3,8-MAN.cols.length);return [...MAN.cols,...Array.from({length:extra},()=>null)];}
+function renderMan(){ $('#mParts').value=MAN.parts; renderWindow(true); }
+function renderWindow(force){
+  const g=$('#mGrid'); const A=allCols(), nC=A.length, nP=MAN.parts;
+  const H=g.clientHeight||520, W=g.clientWidth||1200, top=RH*(1+SPEC.length);
+  const pr0=Math.max(0,Math.floor((g.scrollTop-top)/RH)-8), pr1=Math.min(nP,pr0+Math.ceil(H/RH)+16);
+  const c0=Math.max(0,Math.floor((g.scrollLeft-LW)/CW)-2), c1=Math.min(nC,c0+Math.ceil(W/CW)+5);
+  if(!force&&pr0===WIN.pr0&&pr1===WIN.pr1&&c0===WIN.c0&&c1===WIN.c1&&nC===WIN.nC&&nP===WIN.nP)return;
+  WIN={pr0,pr1,c0,c1,nC,nP};
+  const ae=document.activeElement, keep=ae&&ae.dataset&&ae.dataset.r!=null&&g.contains(ae)?{r:ae.dataset.r,c:ae.dataset.c,s:ae.selectionStart,e:ae.selectionEnd}:null;
+  const lw=c0*CW, rw=(nC-c1)*CW, vis=c1-c0+(lw?1:0)+(rw?1:0);
+  let h=`<table style="table-layout:fixed;width:${LW+nC*CW}px"><colgroup><col style="width:${LW}px">${lw?`<col style="width:${lw}px">`:''}${`<col style="width:${CW}px">`.repeat(c1-c0)}${rw?`<col style="width:${rw}px">`:''}</colgroup>`;
+  h+='<thead><tr><th class="rl">Point · Coord</th>'+(lw?'<th></th>':'');
+  for(let ci=c0;ci<c1;ci++){const c=A[ci];const lab=c&&(String(c.pt).trim()||String(c.ax).trim())?esc([String(c.pt).trim(),String(c.ax).trim()].filter(Boolean).join(' ')):(ci+1);h+=`<th title="Column ${ci+1}"><span style="color:var(--ink);font-weight:600">${lab}</span>${c?`<button class="x" data-del="${ci}" title="Remove column" aria-label="Remove column ${ci+1}">×</button>`:''}</th>`;}
+  h+=(rw?'<th></th>':'')+'</tr></thead><tbody>';
+  const RK=rowKeys();
+  const row=(ri)=>{const f=RK[ri],spec=typeof f!=='number';let t=`<tr class="${spec?'spec':''} ${f==='usl'?'sep':''} ${f==='pt'||f==='ax'?'hdr':''}"><td class="rl">${spec?SPECLAB[f]:'Part '+(f+1)}</td>`+(lw?'<td></td>':'');
+    for(let ci=c0;ci<c1;ci++){const c=A[ci];const dis=c&&cellDisabled(c,f);let val=c?getCell(c,f):'';if(dis)val=f==='nom'?'0':'';
+      t+=`<td><input ${f==='pt'||f==='ax'?'':'inputmode="decimal"'} data-r="${ri}" data-c="${ci}" value="${esc(val)}" ${dis?'disabled':''} placeholder="${c&&isTP(c)&&f==='ut'?'Tol ⌀':''}"></td>`;}
+    return t+(rw?'<td></td>':'')+'</tr>';};
+  for(let ri=0;ri<SPEC.length;ri++)h+=row(ri);
+  if(pr0>0)h+=`<tr class="gap" style="height:${pr0*RH}px"><td class="rl"></td><td colspan="${vis}"></td></tr>`;
+  for(let i=pr0;i<pr1;i++)h+=row(SPEC.length+i);
+  if(pr1<nP)h+=`<tr class="gap" style="height:${(nP-pr1)*RH}px"><td class="rl"></td><td colspan="${vis}"></td></tr>`;
+  g.innerHTML=h+'</tbody></table>'; indexInputs(); paintMan();
+  if(keep){const el=cellAt(keep.r,keep.c);if(el){el.focus({preventScroll:true});try{el.setSelectionRange(keep.s,keep.e);}catch(_){}}}
 }
-function cellAt(r,c){return $('#mGrid').querySelector(`input[data-r="${r}"][data-c="${c}"]`);}
-function paintMan(){
-  MAN.cols.forEach((c,ci)=>{const lim=manLimits(c); const nom=parseNum(c.nom);
-    // computed LSL/USL shown as placeholders
+$('#mGrid').addEventListener('scroll',()=>{if(!manRaf)manRaf=requestAnimationFrame(()=>{manRaf=0;renderWindow(false);});});
+$('#mGrid').addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(!b)return;MAN.cols.splice(+b.dataset.del,1);saveMan();renderMan();syncMan();});
+let INP=[];
+function indexInputs(){INP=[];$('#mGrid').querySelectorAll('input[data-r]').forEach(el=>{const r=+el.dataset.r,c=+el.dataset.c;(INP[r]||(INP[r]=[]))[c]=el;});}
+function cellAt(r,c){return INP[r]?INP[r][c]:null;}
+let TPG=null;
+function buildGroups(){TPG=new Map();MAN.cols.forEach(k=>{if(!/^[xyz]$/i.test(String(k.ax).trim()))return;const key=String(k.pt).trim();if(!TPG.has(key))TPG.set(key,[]);TPG.get(key).push(k);});}
+function paintMan(only){
+  buildGroups(); const {pr0,pr1,c0,c1}=WIN;
+  for(let ci=c0;ci<Math.min(c1,MAN.cols.length);ci++){ if(only!=null&&!only.has(ci))continue; const c=MAN.cols[ci]; const lim=manLimits(c);
     const li=cellAt(5,ci),ui=cellAt(6,ci);
     if(li&&!li.disabled){li.placeholder=(parseNum(c.lsl)==null&&lim.lsl!=null)?+lim.lsl.toFixed(6)+'':'';li.classList.toggle('calc',li.placeholder!=='');}
     if(ui){ui.placeholder=(parseNum(c.usl)==null&&lim.usl!=null)?+lim.usl.toFixed(6)+'':'';ui.classList.toggle('calc',ui.placeholder!=='');}
-    for(let i=0;i<MAN.parts;i++){const inp=cellAt(i+SPEC.length,ci);if(!inp)continue;let v=parseNum(c.v[i]);
+    for(let i=pr0;i<pr1;i++){const inp=cellAt(i+SPEC.length,ci);if(!inp)continue;let v=parseNum(c.v[i]);
       if(isTP(c)){const k=v==null?tpCalc(c,i):null;inp.placeholder=k==null?'':k.toFixed(4);inp.classList.toggle('calc',k!=null);if(v==null)v=k;}
-      else{inp.placeholder='';inp.classList.remove('calc');}
-      const bad=isOOT(v,lim.lsl,lim.usl);inp.classList.toggle('oot',bad);inp.title=bad?'Out of tolerance':'';}});
+      else if(inp.placeholder){inp.placeholder='';inp.classList.remove('calc');}
+      const bad=isOOT(v,lim.lsl,lim.usl);if(bad!==inp.classList.contains('oot')){inp.classList.toggle('oot',bad);inp.title=bad?'Out of tolerance':'';}}}
 }
-$('#mGrid').addEventListener('input',e=>{const t=e.target;if(t.tagName!=='INPUT')return;const ci=+t.dataset.c;ensureCols(ci+1);setCell(MAN.cols[ci],rowKeys()[+t.dataset.r],t.value.trim());saveMan();paintMan();syncMan();});
+$('#mGrid').addEventListener('input',e=>{const t=e.target;if(t.tagName!=='INPUT')return;const ci=+t.dataset.c;ensureCols(ci+1);setCell(MAN.cols[ci],rowKeys()[+t.dataset.r],t.value.trim());saveManSoon();
+  const pt=String(MAN.cols[ci].pt).trim();const only=new Set();MAN.cols.forEach((c,j)=>{if(j===ci||String(c.pt).trim()===pt)only.add(j);});paintMan(only);syncMan();});
+let saveT=null;function saveManSoon(){clearTimeout(saveT);saveT=setTimeout(saveMan,600);}
 $('#mGrid').addEventListener('change',e=>{if(e.target.tagName==='INPUT'&&+e.target.dataset.c>=MAN.cols.length-3)renderMan();});
 $('#mGrid').addEventListener('keydown',e=>{const t=e.target;if(t.tagName!=='INPUT'||e.key!=='Enter')return;e.preventDefault();let r=+t.dataset.r+(e.shiftKey?-1:1);
   if(r>=rowKeys().length){MAN.parts++;saveMan();renderMan();}
-  let n=cellAt(r,t.dataset.c); while(n&&n.disabled){r+=e.shiftKey?-1:1;n=cellAt(r,t.dataset.c);} if(n){n.focus();n.select();}});
+  const g=$('#mGrid'); const want=()=>cellAt(r,t.dataset.c);
+  let n=want(); if(!n&&r>=SPEC.length){g.scrollTop+=e.shiftKey?-RH*5:RH*5;renderWindow(false);n=want();}
+  while(n&&n.disabled){r+=e.shiftKey?-1:1;n=want();} if(n){n.focus();n.select();const rb=n.getBoundingClientRect(),gb=g.getBoundingClientRect();if(rb.bottom>gb.bottom-4)g.scrollTop+=RH;else if(rb.top<gb.top+RH*2&&r>=SPEC.length)g.scrollTop-=RH;}});
 // ---------- paste ----------
 const AXTOK=/^(x|y|z|tp|d|dia|r)$/i;
 const HMAP=[['pt',/^(point|pt|point ?no\.?|point ?#|pnt|char(acteristic)?\.?( no\.?)?|feature|name|id|no\.?|#|balloon)$/i],['ax',/^(coord(inate)?s?|axis|ax|dir(ection)?)$/i],['nom',/^(nom(inal)?|target|basic|soll(wert)?)$/i],
@@ -881,7 +908,7 @@ $('#mGrid').addEventListener('paste',e=>{const t=e.target;if(t.tagName!=='INPUT'
   B.forEach((row,i)=>row.forEach((v,j)=>{const rk=RK[r0+i]??(r0+i-SPEC.length),c=MAN.cols[c0+j];if(!c||cellDisabled(c,rk))return;setCell(c,rk,v.trim());}));
   saveMan();renderMan();syncMan();toast(`Pasted ${B.length} row${B.length>1?'s':''}`);});
 function manualChars(){
-  const out=[];
+  const out=[]; buildGroups();
   MAN.cols.forEach(c=>{if(!String(c.pt).trim()&&!String(c.ax).trim()&&!c.v.some(v=>parseNum(v)!=null))return;
     const raw=[];
     for(let i=0;i<MAN.parts;i++){const v=c.v[i];if(parseNum(v)!=null)raw.push(String(v).trim().replace(',','.'));else if(isTP(c)){const k=tpCalc(c,i);if(k!=null)raw.push(k.toFixed(4));}}
@@ -891,7 +918,8 @@ function manualChars(){
   return out;
 }
 let manT=null;
-function syncMan(){clearTimeout(manT);manT=setTimeout(()=>{paintMan();const ch=manualChars().filter(c=>c.values.length);
+let manSig='';
+function syncMan(){clearTimeout(manT);manT=setTimeout(()=>{const ch=manualChars().filter(c=>c.values.length);const sig=JSON.stringify(ch.map(c=>[c.name,c.lsl,c.usl,c.values]));if(sig===manSig)return;manSig=sig;
   if(!ch.length){return;} SOURCES=['manual entry']; setChars(ch);
   const vals=ch.reduce((s,c)=>s+c.values.length,0); msg(`Manual entry: <b>${ch.length}</b> characteristic${ch.length>1?'s':''}, ${vals} values. The report below updates as you type.`,'ok');},450);}
 /* ================= review ================= */
@@ -978,7 +1006,7 @@ function histCfg(r,th){
   const f=v=>fmtV(v,r); const x=r.values;
   const lo=Math.min(r.min,r.lsl??Infinity),hi=Math.max(r.max,r.usl??-Infinity);
   const nb=Math.max(6,Math.min(25,Math.ceil(Math.sqrt(r.n))+1));
-  let w=(r.max-r.min)/nb; if(!(w>0))w=(r.so>0?r.so:Math.abs(r.mean)*0.01||1)/2; if(r.res&&w<r.res)w=r.res;
+  let w=(r.max-r.min)/nb; if(!(w>0))w=(r.so>0?r.so:Math.abs(r.mean)*0.01||1)/2; if(r.res&&w<r.res)w=r.res; if((r.max-r.min)/w>60)w=(r.max-r.min)/60;
   const start=r.min-w/2; const bins=[]; for(let v=start;v<=r.max+w/2+1e-12;v+=w)bins.push({x:v+w/2,y:0});
   x.forEach(v=>{const i=Math.min(bins.length-1,Math.max(0,Math.floor((v-start)/w)));bins[i].y++;});
   const pad=(hi-lo)*0.08||w*2; const xmin=Math.min(lo,start)-pad, xmax=Math.max(hi,bins[bins.length-1].x+w/2)+pad;
@@ -1015,7 +1043,8 @@ function ctrlCfg(r,th){
 
 /* ================= render ================= */
 function render(){
-  charts.forEach(c=>c.destroy()); charts=[];
+  charts.forEach(c=>c.destroy()); charts=[]; if(IO)IO.disconnect();
+  IO=('IntersectionObserver' in window)?new IntersectionObserver(ents=>ents.forEach(en=>{if(en.isIntersecting){const el=en.target;IO.unobserve(el);if(el._lazy){const f=el._lazy;el._lazy=null;f();}}}),{rootMargin:'600px 0px'}):null;
   $('#results').classList.remove('hidden'); $('#topPdf').classList.remove('hidden'); $('#topXlsx').classList.remove('hidden');
   const R=RESULTS,T=OPT.target,idx=IDX(),th=screenTheme();
   const cnt={good:0,warn:0,crit:0,na:0}; R.forEach(r=>cnt[r.status]++);
@@ -1029,10 +1058,11 @@ function render(){
     +kpi('✕ Not capable',cnt.crit,`${idx} < 1.00`,'var(--critical)')
     +kpi(`Lowest ${idx}`,worst?i2(worst.C):'—',worst?esc(worst.name):'',worst?`var(--${worst.status==='good'?'good':worst.status==='warn'?'warning':'critical'})`:null);
   // overview
-  $('#ovTitle').textContent=`${idx} by characteristic`;
+  const OVMAX=50; const ovList=valid.slice(0,OVMAX);
+  $('#ovTitle').textContent=valid.length>OVMAX?`${idx} — ${OVMAX} lowest of ${valid.length} characteristics`:`${idx} by characteristic`;
   $('#ovLegend').innerHTML=`<span><i class="box" style="background:var(--critical)"></i>✕ Not capable</span><span><i class="box" style="background:var(--warning)"></i>▲ Marginal</span><span><i class="box" style="background:var(--good)"></i>✓ Capable</span>`;
-  $('#ovBox').style.height=Math.max(180,valid.length*30+64)+'px';
-  charts.push(new Chart($('#ovChart'),overviewCfg(valid,th,r=>goTo(r))));
+  $('#ovBox').style.height=Math.max(180,ovList.length*30+64)+'px';
+  charts.push(new Chart($('#ovChart'),overviewCfg(ovList,th,r=>goTo(r))));
   $('#donutSub').textContent=`${cnt.good} of ${cnt.good+cnt.warn+cnt.crit} meet target`;
   charts.push(new Chart($('#donut'),donutCfg(cnt,th)));
   $('#donutLegend').innerHTML=`<span><i class="box" style="background:var(--good)"></i>${cnt.good} capable</span><span><i class="box" style="background:var(--warning)"></i>${cnt.warn} marginal</span><span><i class="box" style="background:var(--critical)"></i>${cnt.crit} not capable</span>`;
@@ -1040,15 +1070,19 @@ function render(){
   const bad=valid.filter(r=>r.status!=='good'), good=valid.filter(r=>r.status==='good'), na=R.filter(r=>r.status==='na');
   $('#badCount').textContent=bad.length?`${bad.length}`:'none';
   $('#badCards').innerHTML=bad.length?'':`<div class="card empty">All characteristics meet ${idx} ≥ ${T.toFixed(2)}.</div>`;
-  bad.forEach(r=>{const el=document.createElement('div');el.className='card ccard';el.id=slug(r.name);el.innerHTML=cardHead(r)+chartPair(r);$('#badCards').appendChild(el);drawPair(el,r,th);});
+  const frag=document.createDocumentFragment(); const lazyEls=[];
+  bad.forEach(r=>{const el=document.createElement('div');el.className='card ccard';el.id=slug(r.name);el.innerHTML=cardHead(r)+'<div class="lz" style="min-height:300px"></div>';
+    el._lazy=()=>{const z=el.querySelector('.lz');z.outerHTML=chartPair(r);drawPair(el,r,screenTheme());};frag.appendChild(el);lazyEls.push(el);});
+  $('#badCards').appendChild(frag); lazyEls.forEach(el=>{if(IO)IO.observe(el);else el._lazy();});
   // table
   renderTable();
   // capable (collapsed)
   const rest=[...good,...na]; $('#okWrap').classList.toggle('hidden',!rest.length);
   $('#okCount').textContent=`${good.length}${na.length?` · ${na.length} without result`:''}`; $('#okCards').innerHTML='';
+  const okFrag=document.createDocumentFragment();
   rest.forEach(r=>{const d=document.createElement('details');d.className='card cap-card';d.id=slug(r.name);
-    d.innerHTML=`<summary><span class="nm">${esc(r.name)} ${badge(r.status)}</span><span class="ixs">${r.status==='na'?`<span class="ix">${esc(r.naWhy||'')}</span>`:ixChips(r)}</span></summary>${r.n>=2?chartPair(r):''}`;
-    d.addEventListener('toggle',()=>{if(d.open&&!d._drawn&&r.n>=2){d._drawn=1;drawPair(d,r,screenTheme());}});$('#okCards').appendChild(d);});
+    d.innerHTML=`<summary><span class="nm">${esc(r.name)} ${badge(r.status)}</span><span class="ixs">${r.status==='na'?`<span class="ix">${esc(r.naWhy||'')}</span>`:ixChips(r)}</span></summary><div class="lz"></div>`;
+    d.addEventListener('toggle',()=>{if(d.open&&!d._drawn&&r.n>=2){d._drawn=1;d.querySelector('.lz').outerHTML=chartPair(r);drawPair(d,r,screenTheme());}});okFrag.appendChild(d);}); $('#okCards').appendChild(okFrag);
   // findings
   const notes=good.filter(r=>r.sugg.length);
   $('#findings').innerHTML=(bad.length?bad.map(findBlock).join(''):`<div class="card empty">No characteristic below target — no corrective actions needed.</div>`)
@@ -1088,7 +1122,7 @@ function renderTable(){
     <td class="num">${fmtPPM(r.ppm)}</td><td class="num ${r.oos?'bad':''}">${r.oos}</td><td class="num ${r.ad&&r.ad.p<0.05?'mid':''}">${r.ad?(r.ad.p<0.001?'<0.001':r.ad.p.toFixed(3)):'—'}</td><td class="l">${badge(r.status)}</td></tr>`;}).join('')+'</tbody>';
   $('#tbl').querySelectorAll('tr[data-n]').forEach(tr=>tr.addEventListener('click',()=>goTo(RESULTS.find(r=>r.name===tr.dataset.n))));
 }
-function goTo(r){if(!r)return;const el=document.getElementById(slug(r.name));if(!el)return;if(el.tagName==='DETAILS')el.open=true;el.scrollIntoView({behavior:'smooth',block:'start'});}
+function goTo(r){if(!r)return;const el=document.getElementById(slug(r.name));if(!el)return;if(el._lazy){const f=el._lazy;el._lazy=null;if(IO)IO.unobserve(el);f();}if(el.tagName==='DETAILS')el.open=true;el.scrollIntoView({behavior:'smooth',block:'start'});}
 
 /* ================= exports ================= */
 function stamp(){const d=new Date();return d.toISOString().slice(0,10);}
@@ -1099,15 +1133,15 @@ async function saveBlob(blob,name){
 function renderImage(cfg,wPx,hPx){
   const cv=document.createElement('canvas'); cv.style.width=wPx+'px'; cv.style.height=hPx+'px'; cv.width=wPx; cv.height=hPx;
   const box=document.createElement('div'); box.style.width=wPx+'px'; box.style.height=hPx+'px'; box.appendChild(cv); $('#offscreen').appendChild(box);
-  cfg.options.responsive=false; cfg.options.devicePixelRatio=2; cfg.options.animation=false; cfg.plugins=[...(cfg.plugins||[]),whiteBg];
-  const ch=new Chart(cv,cfg); const url=ch.toBase64Image('image/jpeg',0.9); ch.destroy(); box.remove(); return url;
+  cfg.options.responsive=false; cfg.options.devicePixelRatio=1.6; cfg.options.animation=false; cfg.plugins=[...(cfg.plugins||[]),whiteBg];
+  const ch=new Chart(cv,cfg); const url=ch.toBase64Image('image/jpeg',0.8); ch.destroy(); box.remove(); return url;
 }
 const pdfTxt=s=>String(s).replace(/σ/g,'sigma').replace(/≥/g,'>=').replace(/≤/g,'<=').replace(/≈/g,'~').replace(/[−–—]/g,'-').replace(/x̄/g,'mean').replace(/X̄/g,'Xbar').replace(/R̄/g,'Rbar').replace(/d₂/g,'d2').replace(/[✓✕▲⚠]/g,'').replace(/→/g,'->').replace(/…/g,'...').replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/[^\x00-\xFF]/g,'?');
 const rgb=h=>{h=h.replace('#','');return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)];};
 const SCOL={good:'#0ca30c',warn:'#fab219',crit:'#d03b3b',na:'#898781'};
 async function downloadPdf(){
   if(!window.jspdf){toast('PDF library failed to load — check internet access');return;}
-  const btn=$('#dlPdf'); btn.disabled=true; $('#topPdf').disabled=true; toast('Building PDF report…'); await new Promise(r=>setTimeout(r,30));
+  const btn=$('#dlPdf'); const btnHTML=btn.innerHTML; btn.disabled=true; $('#topPdf').disabled=true; toast('Building PDF report…'); await new Promise(r=>setTimeout(r,30));
   try{
   const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:'mm',format:'a4',compress:true}); const W=210,M=14,CW=W-2*M;
   const R=RESULTS,T=OPT.target,idx=IDX(); const valid=R.filter(r=>r.C!=null).sort((a,b)=>a.C-b.C);
@@ -1138,16 +1172,18 @@ async function downloadPdf(){
       if(d.section==='body'&&(d.column.index===6&&OPT.judge==='cpk'||d.column.index===8&&OPT.judge==='ppk')){const v=parseFloat(d.cell.raw);if(v<1)d.cell.styles.textColor=[176,42,42];else if(v<T)d.cell.styles.textColor=[138,90,0];}}});
   y=doc.lastAutoTable.finalY+9;
   // overview chart
-  if(valid.length&&y+Math.max(200,valid.length*26+64)*CW/720>282){doc.addPage();y=M+4;}
-  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text(`${idx} by characteristic`,M,y); y+=3;
-  if(valid.length){
-    const hPx=Math.max(200,valid.length*26+64), wPx=720; const img=renderImage(overviewCfg(valid,PRINT),wPx,hPx);
+  const ovP=valid.slice(0,50);
+  if(ovP.length&&y+Math.max(200,ovP.length*26+64)*CW/720>282){doc.addPage();y=M+4;}
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text(valid.length>50?`${idx} - 50 lowest of ${valid.length}`:`${idx} by characteristic`,M,y); y+=3;
+  if(ovP.length){
+    const hPx=Math.max(200,ovP.length*26+64), wPx=720; const img=renderImage(overviewCfg(ovP,PRINT),wPx,hPx);
     let hMm=CW*hPx/wPx; const maxH=282-y; if(hMm>maxH){hMm=maxH;}
     doc.addImage(img,'JPEG',M,y,hMm*wPx/hPx>CW?CW:hMm*wPx/hPx,hMm); y+=hMm+6;
   }
   // detail pages for below target
   const bad=valid.filter(r=>r.status!=='good');
-  bad.forEach(r=>{
+  for(let bi=0;bi<bad.length;bi++){ const r=bad[bi];
+    if(bi%3===0){btn.textContent=`Building ${bi+1}/${bad.length}…`;await new Promise(z=>setTimeout(z,0));}
     doc.addPage(); let y=M+2;
     doc.setFillColor(...rgb(SCOL[r.status])); doc.rect(M,y-4,1.6,9,'F');
     doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(11,11,11); doc.text(pdfTxt(r.name),M+4,y+2.5);
@@ -1178,7 +1214,7 @@ async function downloadPdf(){
       if(y+need>285){doc.addPage();y=M+4;}
       doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(11,11,11); doc.text(`${i+1}.`,M,y); doc.text(pdfTxt(s.t),M+7,y);
       doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(82,81,78); doc.text(tl,M+7,y+4.6); y+=need+2.5;});
-  });
+  }
   // method notes
   doc.addPage(); let yy=M+4; doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(11,11,11); doc.text('How to read this report',M,yy); yy+=7;
   document.querySelectorAll('.notes dt').forEach(dt=>{const dd=dt.nextElementSibling; doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.setTextColor(11,11,11); doc.text(pdfTxt(dt.textContent),M,yy); yy+=4.4;
@@ -1186,7 +1222,7 @@ async function downloadPdf(){
   const np=doc.internal.getNumberOfPages();
   for(let i=1;i<=np;i++){doc.setPage(i);doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(137,135,129);doc.text('Process Capability Analyzer',M,291);doc.text(`Page ${i} of ${np}`,W-M,291,{align:'right'});}
   if(await saveBlob(doc.output('blob'),`capability-report-${stamp()}.pdf`))toast('PDF report ready');
-  }catch(e){console.error(e);toast('Could not build PDF: '+e.message);}finally{btn.disabled=false;$('#topPdf').disabled=false;}
+  }catch(e){console.error(e);toast('Could not build PDF: '+e.message);}finally{btn.disabled=false;btn.innerHTML=btnHTML;$('#topPdf').disabled=false;}
 }
 async function downloadXlsx(){
   if(!window.XLSX){toast('Excel library failed to load');return;}
