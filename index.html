@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Process Capability Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  color-scheme: light;
+  --page:#f9f9f7; --surface:#fcfcfb; --surface-2:#f2f1ed; --border:#e1e0d9; --grid:#e1e0d9;
+  --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+  --series-1:#2a78d6; --series-2:#eb6834;
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --good-ink:#006300; --warn-ink:#8a5a00; --crit-ink:#b02a2a;
+  --accent:#2a78d6;
+  --mono:'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  --sans:'IBM Plex Sans', system-ui, -apple-system, Segoe UI, sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme: dark;
+    --page:#0d0d0d; --surface:#1a1a19; --surface-2:#232321; --border:#2c2c2a; --grid:#2c2c2a;
+    --ink:#f0efec; --ink-2:#c3c2b7; --muted:#898781;
+    --series-1:#3987e5; --series-2:#d95926;
+    --good-ink:#5fd35f; --warn-ink:#fab219; --crit-ink:#f07a7a;
+    --accent:#3987e5;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5}
+.wrap{max-width:1240px;margin:0 auto;padding:28px 20px 80px}
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px;border-bottom:2px solid var(--ink);padding-bottom:14px}
+header.top h1{font-size:26px;margin:0;letter-spacing:-.01em}
+header.top p{margin:4px 0 0;color:var(--ink-2);font-size:14px}
+.tag{font-family:var(--mono);font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px}
+.grid-in{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px}
+@media (max-width:860px){.grid-in{grid-template-columns:1fr}}
+h2{font-size:18px;margin:34px 0 12px;display:flex;align-items:center;gap:10px}
+h2 .count{font-family:var(--mono);font-size:13px;color:var(--muted);font-weight:400}
+h3{font-size:15px;margin:0 0 8px}
+.drop{border:2px dashed var(--border);border-radius:10px;padding:18px;text-align:center;cursor:pointer;transition:.15s;background:var(--surface-2)}
+.drop:hover,.drop.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface-2))}
+.drop b{display:block;font-size:15px}
+.drop span{color:var(--ink-2);font-size:13px}
+textarea{width:100%;min-height:210px;font-family:var(--mono);font-size:12.5px;line-height:1.45;background:var(--surface);color:var(--ink);border:1px solid var(--border);border-radius:8px;padding:10px;resize:vertical;white-space:pre;overflow:auto}
+textarea:focus,input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
+label.f{display:block;font-size:13px;color:var(--ink-2);margin:10px 0 4px;font-weight:500}
+input[type=number],select{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--ink);font-family:var(--sans);font-size:14px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+button{font-family:var(--sans);font-size:14px;font-weight:600;padding:9px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--ink-2)}
+button.primary{background:var(--ink);color:var(--page);border-color:var(--ink)}
+button.primary:hover{opacity:.9}
+button.small{font-size:12.5px;padding:6px 10px;font-weight:500}
+.msg{font-size:13px;margin-top:10px;padding:8px 10px;border-radius:7px;display:none}
+.msg.show{display:block}
+.msg.ok{background:color-mix(in srgb,var(--good) 12%,transparent);color:var(--good-ink)}
+.msg.err{background:color-mix(in srgb,var(--critical) 12%,transparent);color:var(--crit-ink)}
+.msg.info{background:var(--surface-2);color:var(--ink-2)}
+details.help{font-size:13px;color:var(--ink-2);margin-top:12px}
+details.help summary{cursor:pointer;font-weight:600;color:var(--ink)}
+details.help pre{font-family:var(--mono);font-size:12px;background:var(--surface-2);padding:8px;border-radius:6px;overflow:auto}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.kpi .l{font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px}
+.kpi .v{font-size:30px;font-weight:700;font-family:var(--mono);letter-spacing:-.02em;margin-top:2px}
+.kpi .s{font-size:12px;color:var(--muted)}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.badge.good{background:var(--good);color:#fff}
+.badge.warn{background:var(--warning);color:#0b0b0b}
+.badge.crit{background:var(--critical);color:#fff}
+.badge.na{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--border)}
+.tablewrap{overflow:auto;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:8px 10px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--border)}
+th{font-weight:600;color:var(--ink-2);background:var(--surface-2);position:sticky;top:0;font-size:12px}
+td:first-child,th:first-child{text-align:left;position:sticky;left:0;background:inherit}
+td:first-child{background:var(--surface);font-weight:600}
+td.num{font-family:var(--mono)}
+tr.clickable{cursor:pointer}
+tr.clickable:hover td{background:var(--surface-2)}
+td.bad{color:var(--crit-ink);font-weight:600}
+td.mid{color:var(--warn-ink);font-weight:600}
+.chartbox{position:relative;width:100%}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:16px;overflow:hidden}
+.card>.hd{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.card>.hd .nm{font-size:16px;font-weight:700}
+.card>.hd .ix{font-family:var(--mono);font-size:13px;color:var(--ink-2);display:flex;gap:14px;flex-wrap:wrap}
+.card>.hd .ix b{color:var(--ink)}
+.card .bd{padding:16px 18px}
+.charts2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:860px){.charts2{grid-template-columns:1fr}}
+.charts2 .cap{font-size:12.5px;color:var(--ink-2);font-weight:600;margin-bottom:4px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px;margin:14px 0}
+.stat{background:var(--surface-2);border-radius:8px;padding:7px 10px}
+.stat .l{font-size:11.5px;color:var(--ink-2)}
+.stat .v{font-family:var(--mono);font-size:14px;font-weight:500}
+.sugg{margin-top:6px}
+.sugg h4{margin:0 0 8px;font-size:14px}
+.sugg ol{margin:0;padding-left:20px}
+.sugg li{margin-bottom:9px}
+.sugg li b{display:block}
+.sugg li span{color:var(--ink-2);font-size:14px}
+.pill{font-family:var(--mono);font-size:11px;padding:1px 6px;border-radius:5px;background:var(--surface-2);color:var(--ink-2);margin-left:6px;font-weight:500;text-transform:uppercase;letter-spacing:.04em}
+.diag{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 14px}
+.diag .d{font-size:13px;padding:5px 10px;border-radius:7px;border:1px solid var(--border)}
+details.cap-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:10px}
+details.cap-card>summary{list-style:none;cursor:pointer;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+details.cap-card>summary::-webkit-details-marker{display:none}
+details.cap-card>summary .nm{font-weight:700}
+details.cap-card>summary .ix{font-family:var(--mono);font-size:13px;color:var(--ink-2)}
+details.cap-card[open]>summary{border-bottom:1px solid var(--border)}
+.hidden{display:none!important}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2);margin:6px 0 4px}
+.legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:6px;border-radius:2px}
+.legend i.box{height:10px;width:10px;border-radius:2px}
+.legend i.dash{background:none!important;border-top:2px dashed;height:0}
+.summary-list{margin:0;padding-left:0;list-style:none}
+.summary-list li{padding:10px 0;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}
+.summary-list li:last-child{border-bottom:0}
+.summary-list .why{color:var(--ink-2);font-size:14px}
+.summary-list a{color:var(--ink);font-weight:700;text-decoration:none;border-bottom:1px solid var(--border)}
+.foot{margin-top:40px;font-size:12.5px;color:var(--muted)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--page);padding:9px 16px;border-radius:8px;font-size:14px;opacity:0;transition:.2s;pointer-events:none}
+.toast.show{opacity:1}
+.extracted pre{max-height:260px;overflow:auto;font-family:var(--mono);font-size:11.5px;background:var(--surface-2);padding:8px;border-radius:6px;white-space:pre}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="tag">SPC · Process capability</div>
+      <h1>Process Capability Analyzer</h1>
+      <p>Cp · Cpk · Pp · Ppk with histograms, control charts and improvement actions for every characteristic that misses target.</p>
+    </div>
+  </header>
+
+  <section class="grid-in">
+    <div class="panel">
+      <h3>1 · Load data</h3>
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="Upload files">
+        <b>Drop PDF, Excel or CSV files here — or click to browse</b>
+        <span>Inspection / CMM reports (PDF, text-based), measurement tables. Several PDFs (one per part) are combined by characteristic name.</span>
+        <input type="file" id="file" multiple accept=".pdf,.csv,.txt,.tsv,.xlsx,.xls" class="hidden">
+      </div>
+      <div class="msg" id="loadMsg"></div>
+      <div class="extracted hidden" id="extractBox">
+        <details class="help"><summary>Show text extracted from PDF</summary><pre id="extractPre"></pre></details>
+      </div>
+      <label class="f" for="data">Data — review / edit before calculating</label>
+      <textarea id="data" spellcheck="false" placeholder="Characteristic, LSL, USL, value1, value2, value3, ...&#10;Bore Ø12, 11.98, 12.02, 12.001, 12.004, 11.998, ..."></textarea>
+      <details class="help">
+        <summary>Accepted layouts</summary>
+        <p><b>A · One row per characteristic</b> (leave LSL or USL empty for one-sided specs):</p>
+        <pre>Characteristic, LSL, USL, values...
+Bore Ø12, 11.98, 12.02, 12.003, 11.999, 12.001
+Flatness, , 0.05, 0.021, 0.034, 0.027</pre>
+        <p><b>B · One column per characteristic</b> (as exported from many spreadsheets):</p>
+        <pre>Sample, Bore Ø12, Flatness
+LSL, 11.98,
+USL, 12.02, 0.05
+1, 12.003, 0.021
+2, 11.999, 0.034</pre>
+        <p><b>PDF reports:</b> tables with columns such as <i>Feature · Nominal · +Tol · −Tol · Actual</i>, <i>Feature · LSL · USL · Measured</i>, or <i>Characteristic · LSL · USL · Part 1 · Part 2…</i> are recognised. Scanned (image-only) PDFs have no text layer and can't be read — export the data instead.</p>
+        <p><b>Tip:</b> for zero-bounded features (flatness, position, run-out) leave LSL empty so they're treated as one-sided.</p>
+      </details>
+    </div>
+    <div class="panel">
+      <h3>2 · Settings</h3>
+      <label class="f" for="target">Capability target</label>
+      <select id="target">
+        <option value="1.00">1.00</option>
+        <option value="1.33" selected>1.33 (typical production)</option>
+        <option value="1.67">1.67 (PPAP / new process)</option>
+        <option value="2.00">2.00 (Six Sigma / critical)</option>
+        <option value="custom">Custom…</option>
+      </select>
+      <input type="number" id="targetCustom" step="0.01" min="0.1" value="1.5" class="hidden" style="margin-top:6px">
+      <div class="row2">
+        <div>
+          <label class="f" for="judge">Judge capability on</label>
+          <select id="judge">
+            <option value="cpk" selected>Cpk (short-term, within)</option>
+            <option value="ppk">Ppk (long-term, overall)</option>
+          </select>
+        </div>
+        <div>
+          <label class="f" for="sub">Subgroup size</label>
+          <input type="number" id="sub" min="1" max="10" step="1" value="1">
+        </div>
+      </div>
+      <p style="font-size:12.5px;color:var(--ink-2);margin:10px 0 0">Subgroup size 1 = individual values in production order (σ within from moving range). Use 2–10 when consecutive values were measured in subgroups (σ within = R̄/d₂).</p>
+      <div class="btns">
+        <button class="primary" id="calc">Calculate capability</button>
+        <button id="sample">Load example data</button>
+        <button id="clear">Clear</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="results" class="hidden">
+    <h2>Summary</h2>
+    <div class="kpis" id="kpis"></div>
+
+    <div class="panel" style="margin-top:16px" id="needBox">
+      <h3 id="needTitle">Characteristics below target</h3>
+      <ul class="summary-list" id="needList"></ul>
+    </div>
+
+    <h2>Capability overview <span class="count" id="ovCount"></span></h2>
+    <div class="panel">
+      <div class="legend" id="ovLegend"></div>
+      <div class="chartbox" id="ovBox"><canvas id="ovChart" aria-label="Capability index by characteristic"></canvas></div>
+    </div>
+
+    <h2>Results table
+      <span style="margin-left:auto;display:flex;gap:8px">
+        <button class="small" id="copySum">Copy summary</button>
+        <button class="small" id="copyCsv">Copy table (CSV)</button>
+      </span>
+    </h2>
+    <div class="tablewrap"><table id="tbl"></table></div>
+
+    <h2 id="actH">Not capable — charts &amp; actions <span class="count" id="actCount"></span></h2>
+    <div id="actCards"></div>
+
+    <h2 id="okH">Capable characteristics <span class="count" id="okCount"></span></h2>
+    <div id="okCards"></div>
+
+    <p class="foot">Normal-theory indices. σ within: moving range (n=1) or R̄/d₂ (subgroups); σ overall: sample standard deviation. Expected PPM from the overall normal fit. Normality: Anderson–Darling. Control rules: point beyond 3σ, 8 in a row on one side, 6 in a row rising/falling. Lower bound: one-sided 95% (Bissell). Suggested actions are generic engineering guidance — verify against your process.</p>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+
+<script id="core">
+/* ============ statistics ============ */
+const D2={2:1.128,3:1.693,4:2.059,5:2.326,6:2.534,7:2.704,8:2.847,9:2.970,10:3.078};
+function erfc(x){const z=Math.abs(x);const t=1/(1+0.5*z);const r=t*Math.exp(-z*z-1.26551223+t*(1.00002368+t*(0.37409196+t*(0.09678418+t*(-0.18628806+t*(0.27886807+t*(-1.13520398+t*(1.48851587+t*(-0.82215223+t*0.17087277)))))))));return x>=0?r:2-r;}
+function Phi(z){return 0.5*erfc(-z/Math.SQRT2);}
+function npdf(x,m,s){return Math.exp(-0.5*((x-m)/s)**2)/(s*Math.sqrt(2*Math.PI));}
+const mean=a=>a.reduce((s,x)=>s+x,0)/a.length;
+function sd(a){if(a.length<2)return NaN;const m=mean(a);return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/(a.length-1));}
+
+function andersonDarling(x){
+  const n=x.length; if(n<8) return null;
+  const m=mean(x), s=sd(x); if(!(s>0)) return null;
+  const z=[...x].sort((a,b)=>a-b).map(v=>(v-m)/s);
+  let S=0;
+  for(let i=0;i<n;i++){
+    const F1=Math.min(Math.max(Phi(z[i]),1e-15),1-1e-15);
+    const F2=Math.min(Math.max(Phi(z[n-1-i]),1e-15),1-1e-15);
+    S+=(2*i+1)*(Math.log(F1)+Math.log(1-F2));
+  }
+  const A=-n-S/n; const As=A*(1+0.75/n+2.25/(n*n));
+  let p;
+  if(As>=0.6) p=Math.exp(1.2937-5.709*As+0.0186*As*As);
+  else if(As>=0.34) p=Math.exp(0.9177-4.279*As-1.38*As*As);
+  else if(As>=0.2) p=1-Math.exp(-8.318+42.796*As-59.938*As*As);
+  else p=1-Math.exp(-13.436+101.14*As-223.73*As*As);
+  return {A:As,p:Math.min(Math.max(p,0),1)};
+}
+
+function decimalsOf(raw){let d=0;for(const r of raw){const s=String(r);const i=s.indexOf('.');if(i>=0){const dd=s.replace(/e.*/i,'').length-i-1;if(dd>d)d=dd;}}return Math.min(d,6);}
+
+function analyze(ch,opt){
+  const x=ch.values, n=x.length;
+  const r={name:ch.name,lsl:ch.lsl,usl:ch.usl,n,values:x,dec:ch.dec??decimalsOf(x)};
+  r.mean=n?mean(x):NaN; r.so=sd(x); r.min=Math.min(...x); r.max=Math.max(...x);
+  // within sigma
+  const k=Math.max(1,Math.min(10,opt.sub|0));
+  r.k=k;
+  let sw=NaN, pts=[], ptsLabel='Individual value';
+  if(k===1){
+    if(n>=2){const mr=[];for(let i=1;i<n;i++)mr.push(Math.abs(x[i]-x[i-1]));sw=mean(mr)/1.128;}
+    pts=x.slice();
+  }else{
+    const g=Math.floor(n/k);
+    if(g>=2){const R=[],M=[];for(let i=0;i<g;i++){const s=x.slice(i*k,i*k+k);R.push(Math.max(...s)-Math.min(...s));M.push(mean(s));}
+      sw=mean(R)/D2[k]; pts=M; ptsLabel='Subgroup mean';}
+    else {sw=r.so; pts=x.slice();}
+  }
+  if(!(sw>0) && r.so>0) sw=r.so;
+  r.sw=sw; r.pts=pts; r.ptsLabel=ptsLabel;
+  const L=r.lsl, U=r.usl, m=r.mean;
+  const idx=(s)=>{
+    const o={};
+    if(!(s>0)) return {c:null,ck:null,cu:null,cl:null};
+    o.cu=U!=null?(U-m)/(3*s):null; o.cl=L!=null?(m-L)/(3*s):null;
+    o.c=(U!=null&&L!=null)?(U-L)/(6*s):null;
+    o.ck=Math.min(o.cu??Infinity,o.cl??Infinity); if(o.ck===Infinity)o.ck=null;
+    return o;
+  };
+  const w=idx(sw), ov=idx(r.so);
+  r.cp=w.c; r.cpk=w.ck; r.cpu=w.cu; r.cpl=w.cl;
+  r.pp=ov.c; r.ppk=ov.ck; r.ppu=ov.cu; r.ppl=ov.cl;
+  // expected ppm (overall)
+  if(r.so>0){
+    let p=0; if(L!=null)p+=Phi((L-m)/r.so); if(U!=null)p+=1-Phi((U-m)/r.so); r.ppm=p*1e6;
+    let pw=0; if(L!=null)pw+=Phi((L-m)/sw); if(U!=null)pw+=1-Phi((U-m)/sw); r.ppmW=pw*1e6;
+  } else r.ppm=r.ppmW=null;
+  r.oos=x.filter(v=>(L!=null&&v<L)||(U!=null&&v>U)).length;
+  r.ad=andersonDarling(x);
+  if(n>=3&&r.so>0){const s=r.so;r.skew=x.reduce((a,v)=>a+((v-m)/s)**3,0)/n;r.kurt=x.reduce((a,v)=>a+((v-m)/s)**4,0)/n-3;}
+  // judge
+  r.judge=opt.judge;
+  r.C=opt.judge==='ppk'?r.ppk:r.cpk;
+  r.Cp2=opt.judge==='ppk'?r.pp:r.cp;
+  r.sj=opt.judge==='ppk'?r.so:r.sw;
+  r.lb= (r.C!=null&&n>1)? r.C-1.645*Math.sqrt(1/(9*n)+r.C*r.C/(2*(n-1))) : null;
+  // control chart
+  const kk = k>1 && pts!==x ? Math.sqrt(k) : 1;
+  r.cl=mean(pts); r.ucl=r.cl+3*sw/kk; r.lcl=r.cl-3*sw/kk;
+  r.rules=controlRules(pts,r.cl,r.ucl,r.lcl);
+  // resolution
+  const u=[...new Set(x.map(v=>+v.toFixed(8)))].sort((a,b)=>a-b);
+  r.unique=u.length; let res=Infinity; for(let i=1;i<u.length;i++){const d=u[i]-u[i-1];if(d>1e-12&&d<res)res=d;} r.res=res===Infinity?null:res;
+  // status
+  const T=opt.target;
+  if(n<5||r.C==null||!(sw>0)||(L==null&&U==null)) r.status='na';
+  else if(r.C>=T) r.status='good';
+  else if(r.C>=1) r.status='warn';
+  else r.status='crit';
+  if(L==null&&U==null) r.naWhy='No spec limits'; else if(n<5) r.naWhy='Fewer than 5 values'; else if(!(sw>0)) r.naWhy='No variation in data';
+  r.sugg=suggestions(r,T);
+  return r;
+}
+
+function controlRules(p,cl,ucl,lcl){
+  const out=new Set(), run=new Set(), trend=new Set();
+  p.forEach((v,i)=>{if(v>ucl||v<lcl)out.add(i);});
+  let side=0,len=0;
+  for(let i=0;i<p.length;i++){const s=p[i]>cl?1:p[i]<cl?-1:0;if(s!==0&&s===side)len++;else{side=s;len=s?1:0;}
+    if(len>=8)for(let j=i-len+1;j<=i;j++)run.add(j);}
+  let dir=0,tl=1;
+  for(let i=1;i<p.length;i++){const d=p[i]>p[i-1]?1:p[i]<p[i-1]?-1:0;if(d!==0&&d===dir)tl++;else{dir=d;tl=d?2:1;}
+    if(tl>=6)for(let j=i-tl+1;j<=i;j++)trend.add(j);}
+  return {out:[...out],run:[...run],trend:[...trend],any:out.size+run.size+trend.size>0};
+}
+
+/* ============ suggestions ============ */
+function suggestions(r,T){
+  const S=[]; const f=v=>fmtV(v,r); const i2=v=>v==null?'—':v.toFixed(2);
+  if(r.status==='na'){ if(r.naWhy) S.push({tag:'data',t:r.naWhy,d:'Add spec limits and at least 25–30 values to compute capability.'}); return S; }
+  const s=r.sj, m=r.mean, L=r.lsl, U=r.usl, two=L!=null&&U!=null;
+  const idxName=r.judge==='ppk'?'Ppk':'Cpk', cpName=r.judge==='ppk'?'Pp':'Cp';
+  if(r.status==='good'){
+    if(r.rules.any) S.push({tag:'stability',t:'Capable, but watch stability',d:`The control chart shows ${ruleText(r.rules)}. Keep the process under SPC so capability doesn't erode.`});
+    if(r.n<30) S.push({tag:'data',t:'Confirm with more data',d:`Only ${r.n} values; the 95% lower bound on ${idxName} is ${i2(r.lb)}. Confirm with 50+ parts.`});
+    return S;
+  }
+  r.issue='variation';
+  if(r.oos>0) S.push({tag:'containment',t:'Contain now',d:`${r.oos} of ${r.n} measured values (${(100*r.oos/r.n).toFixed(1)}%) are already out of tolerance; expected defect rate ≈ ${fmtPPM(r.ppm)} PPM. Put 100% inspection / sorting in place for this characteristic until the corrective action is verified.`});
+  if(r.rules.any){
+    S.push({tag:'stability',t:'Stabilise the process first',d:`The control chart shows ${ruleText(r.rules)}. Capability indices assume a stable process — find what changed around the flagged points (tool change, new material lot, shift change, machine restart, adjustment) and remove those special causes before trusting the index.`});
+  }
+  if(r.trend_hint=r.rules.trend.length>0){
+    S.push({tag:'stability',t:'Drift / trend detected',d:'A steady rise or fall usually points to tool wear, thermal growth or consumable degradation. Add wear compensation, shorten the tool-change / dressing interval, or warm the machine up before production.'});
+  }
+  if(r.sw>0 && r.so/r.sw>1.25){
+    S.push({tag:'stability',t:'Long-term shifts inflate variation',d:`Overall σ (${f(r.so)}) is ${(r.so/r.sw).toFixed(2)}× the short-term σ (${f(r.sw)}). Removing the between-part / between-subgroup shifts alone would raise Ppk from ${i2(r.ppk)} toward Cpk ${i2(r.cpk)}.`});
+  }
+  if(two){
+    const center=(L+U)/2, off=center-m, cpv=r.Cp2;
+    const lo=L+3*T*s, hi=U-3*T*s;
+    if(cpv>=T){
+      r.issue='centering';
+      S.push({tag:'centering',t:`Re-center the mean — this alone fixes it`,d:`The spread fits the tolerance (${cpName} ${i2(cpv)} ≥ ${T.toFixed(2)}) but the mean ${f(m)} sits ${f(Math.abs(off))} ${off<0?'above':'below'} mid-tolerance ${f(center)}. Shift the process ${off<0?'down':'up'} by ≈ ${f(Math.abs(off))} (any mean between ${f(lo)} and ${f(hi)} meets ${idxName} ≥ ${T.toFixed(2)}; centered gives ${idxName} ≈ ${i2(cpv)}).`});
+      S.push({tag:'how',t:'How to re-center',d:'Adjust the machine / tool offset toward nominal; make first-piece approval target nominal (not just "in tolerance"); check fixture datums and zero points; for moulding/forming adjust pack/hold pressure or the tool (steel-safe) dimension.'});
+    }else{
+      const sReq=(U-L)/(6*T), red=1-sReq/s;
+      if(Math.abs(off)>0.1*(U-L)/2 && cpv-r.C>0.1){
+        r.issue='both';
+        S.push({tag:'centering',t:'Re-center the mean',d:`The mean ${f(m)} is ${f(Math.abs(off))} ${off<0?'above':'below'} mid-tolerance ${f(center)}. Centering raises ${idxName} from ${i2(r.C)} to ${i2(cpv)} — necessary, but not enough on its own.`});
+      }
+      S.push({tag:'variation',t:`Reduce variation by ≈ ${(red*100).toFixed(0)}%`,d:`Even perfectly centered, the spread is too wide (${cpName} ${i2(cpv)} < ${T.toFixed(2)}). σ must drop from ${f(s)} to ≤ ${f(sReq)}.`});
+      S.push({tag:'how',t:'Where variation usually comes from',d:'Fixture / clamping repeatability, tool wear and change interval, spindle run-out, machine warm-up and coolant/ambient temperature, incoming material variation, operator method. Run a multi-vari study or DOE to find the inputs that drive this characteristic, then error-proof or control them.'});
+      const half=3*T*s;
+      S.push({tag:'spec',t:'Or review the tolerance with design',d:`With current variation the process needs a tolerance of about ±${f(half)} (width ${f(2*half)}) vs the current ${f(U-L)}. Only pursue this if function allows it.`});
+    }
+  }else{
+    const one=U!=null?'U':'L';
+    if(one==='U'){
+      const mMax=U-3*T*s, sReq=(U-m)/(3*T);
+      S.push({tag:'one-sided',t:'One-sided limit (USL only)',d:`To reach ${idxName} ≥ ${T.toFixed(2)} either lower the mean from ${f(m)} to ≤ ${f(mMax)} (−${f(m-mMax)}), or reduce σ from ${f(s)} to ≤ ${f(sReq)} (−${((1-sReq/s)*100).toFixed(0)}%).`});
+    }else{
+      const mMin=L+3*T*s, sReq=(m-L)/(3*T);
+      S.push({tag:'one-sided',t:'One-sided limit (LSL only)',d:`To reach ${idxName} ≥ ${T.toFixed(2)} either raise the mean from ${f(m)} to ≥ ${f(mMin)} (+${f(mMin-m)}), or reduce σ from ${f(s)} to ≤ ${f(sReq)} (−${((1-sReq/s)*100).toFixed(0)}%).`});
+    }
+    S.push({tag:'how',t:'Typical levers',d:'One-sided features (flatness, run-out, roughness, position) are improved by better fixturing and clamping, reduced cutting forces / finishing passes, stress relief, and machine geometry checks.'});
+  }
+  if(r.ad && r.ad.p<0.05){
+    let d=`Anderson–Darling p = ${r.ad.p<0.001?'<0.001':r.ad.p.toFixed(3)}; the normal model may misstate the defect rate. `;
+    if(r.kurt!=null&&r.kurt<-0.9) d+='The histogram is flat / possibly bimodal — typical of mixed streams (several cavities, spindles, fixtures, machines or shifts). Split the data by stream and analyse each one; fix the stream that is off.';
+    else if(r.skew!=null&&Math.abs(r.skew)>0.7) d+=`The data are ${r.skew>0?'right':'left'}-skewed (skewness ${r.skew.toFixed(2)}), common for features bounded at zero. Use a non-normal capability method (Box-Cox / Johnson transform or Weibull / lognormal fit) before final judgement.`;
+    else d+='Check for outliers or data-entry errors, then consider a transformation or non-normal fit.';
+    S.push({tag:'normality',t:'Data are not normal',d});
+  }
+  const tol=two?U-L:null;
+  if(r.res!=null && ((tol&&r.res>tol/10)||(r.unique<8&&r.n>=20))){
+    S.push({tag:'measurement',t:'Check the measurement system',d:`Only ${r.unique} distinct values (resolution ≈ ${f(r.res)}${tol?`, ${(100*r.res/tol).toFixed(0)}% of tolerance`:''}). Use a gauge that resolves ≤ 1/10 of the tolerance and run a Gauge R&R (target ≤ 10%, ndc ≥ 5) — measurement noise counts as process variation here.`});
+  }
+  if(r.n<30) S.push({tag:'data',t:'Collect more data',d:`Only ${r.n} values — the 95% lower bound on ${idxName} is ${i2(r.lb)}. Use 50–100 consecutive parts (or 25 subgroups of 4–5) to confirm.`});
+  return S;
+}
+function ruleText(R){const a=[];if(R.out.length)a.push(`${R.out.length} point${R.out.length>1?'s':''} beyond the 3σ limits`);if(R.run.length)a.push('a run of 8+ points on one side of the centre line');if(R.trend.length)a.push('6+ points steadily rising or falling');return a.join(', ');}
+function fmtV(v,r){if(v==null||!isFinite(v))return '—';const d=Math.min((r?.dec??3)+1,6);return v.toFixed(d);}
+function fmtPPM(p){if(p==null)return '—';if(p<0.01)return '<0.01';if(p<10)return p.toFixed(2);if(p<1000)return p.toFixed(0);return Math.round(p).toLocaleString();}
+
+/* ============ text parsing ============ */
+const NULLTOK=/^(|-|–|—|na|n\/a|none|null|nan)$/i;
+function parseNum(t){if(t==null)return null;let s=String(t).trim().replace(/[−–]/g,'-').replace(/^±\s*/,'').replace(/\s+/g,'');
+  s=s.replace(/(mm|in|inch|um|µm|μm|deg|°|%|nm|n|kg|g)$/i,'');
+  if(/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(s))return parseFloat(s);return null;}
+function splitLine(line){
+  if(line.includes('\t'))return line.split('\t').map(s=>s.trim());
+  if(line.includes(';'))return line.split(';').map(s=>s.trim());
+  if(line.includes(','))return line.split(',').map(s=>s.trim());
+  // whitespace: keep leading words together as name
+  const toks=line.trim().split(/\s+/); let i=0; while(i<toks.length&&parseNum(toks[i])==null&&!NULLTOK.test(toks[i]))i++;
+  return i>0?[toks.slice(0,i).join(' '),...toks.slice(i)]:toks;
+}
+function parseText(text){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim()&&!/^\s*#/.test(l));
+  if(!lines.length) return {chars:[],err:'No data entered.'};
+  const rows=lines.map(splitLine);
+  const isLim=c=>/^(lsl|usl|target|nominal|nom)$/i.test((c||'').trim());
+  if(rows.some(r=>/^(lsl|usl)$/i.test((r[0]||'').trim()))){
+    // column layout
+    const hi=rows.findIndex(r=>!isLim(r[0])&&r.slice(1).some(c=>c&&parseNum(c)==null));
+    const head=hi>=0?rows[hi]:null; const ncol=Math.max(...rows.map(r=>r.length));
+    const chars=[];
+    for(let j=1;j<ncol;j++){
+      const name=head&&head[j]?head[j]:`Characteristic ${j}`;
+      let lsl=null,usl=null; const raw=[];
+      rows.forEach((r,ri)=>{if(ri===hi)return;const k=(r[0]||'').trim().toLowerCase();const v=parseNum(r[j]);
+        if(k==='lsl')lsl=v;else if(k==='usl')usl=v;else if(isLim(k))return;else if(v!=null)raw.push(r[j]);});
+      if(raw.length||lsl!=null||usl!=null) chars.push({name,lsl,usl,values:raw.map(parseNum),dec:decimalsOf(raw.map(s=>String(s).trim()))});
+    }
+    return {chars,layout:'columns'};
+  }
+  const chars=[];
+  for(const r of rows){
+    const name=(r[0]||'').trim(); if(!name) continue;
+    const L=r[1]; const U=r[2];
+    if(L!==undefined&&parseNum(L)==null&&!NULLTOK.test(L.trim())) continue; // header
+    const raw=r.slice(3).filter(c=>parseNum(c)!=null);
+    chars.push({name,lsl:parseNum(L),usl:parseNum(U),values:raw.map(parseNum),dec:decimalsOf(raw.map(s=>String(s).trim()))});
+  }
+  // merge duplicate names
+  const m=new Map(); for(const c of chars){if(m.has(c.name)){const o=m.get(c.name);o.values.push(...c.values);o.dec=Math.max(o.dec,c.dec);if(o.lsl==null)o.lsl=c.lsl;if(o.usl==null)o.usl=c.usl;}else m.set(c.name,c);}
+  return {chars:[...m.values()],layout:'rows'};
+}
+
+/* ============ PDF / report table interpretation ============ */
+const HKEYS=[
+ ['label',/^(feature|feat|char\.?|characteristic|description|desc|name|dimension|dim\.?|item|balloon|bal\.?|no\.?|#|id|label|parameter|param|ref|loc|location|axis)\b/i],
+ ['ign',/^(dev|deviation|error|out\b|out of|oot|status|pass|fail|ok\b|mean|avg|average|std|stdev|sigma|cpk?|ppk?|range|bonus|units?|unit|trend|plot|graph)/i],
+ ['lsl',/^(lsl|lower spec|lower limit|low limit|lo limit|min(imum)?(\s+(limit|spec|value))?|ll|ltl)$/i],
+ ['usl',/^(usl|upper spec|upper limit|high limit|hi limit|max(imum)?(\s+(limit|spec|value))?|ul|utl)$/i],
+ ['utol',/^(\+\s*tol\.?|upper tol\.?(erance)?|utol|tol\.?\s*\+|plus tol|\+|tol\s*\(\+\)|up\s*tol)$/i],
+ ['ltol',/^(-\s*tol\.?|[−–]\s*tol\.?|lower tol\.?(erance)?|ltol|tol\.?\s*[-−–]|minus tol|-|−|tol\s*\(-\)|lo\s*tol)$/i],
+ ['tol',/^(±\s*tol\.?|tol\.?|tolerance|±)$/i],
+ ['nom',/^(nom\.?|nominal|target|basic|spec|specification|drawing)$/i],
+ ['act',/^(actual|act\.?|meas\.?|measured|measurement|measure|value|reading|obs\.?|observed)$/i],
+ ['res',/^(result|results)$/i],
+ ['val',/^((part|sample|piece|pc|pcs|s|x|run|shot|cav(ity)?|meas\.?|reading|serial|sn)\s*#?\s*\d+|\d{1,3})$/i],
+];
+function classify(cell){const c=cell.trim();for(const [k,re] of HKEYS)if(re.test(c))return k;return 'text';}
+function isHeader(cells){
+  const ks=cells.map(classify); const set=new Set(ks);
+  const alpha=ks.filter(k=>['lsl','usl','nom','utol','ltol','tol','act','res'].includes(k)).length;
+  if(alpha<1) return null;
+  const ok=(set.has('act')||set.has('res')||set.has('val'))&&(set.has('nom')||(set.has('lsl')||set.has('usl')));
+  if(!ok) return null;
+  const numCells=cells.filter(c=>parseNum(c)!=null).length;
+  if(numCells>cells.length/2 && !set.has('val')) return null;
+  if(ks.includes('act')) for(let i=0;i<ks.length;i++) if(ks[i]==='res')ks[i]='ign';
+  if(!ks.includes('act')) for(let i=0;i<ks.length;i++) if(ks[i]==='res')ks[i]='act';
+  const cols=[];ks.forEach(k=>{if(k!=='label'&&k!=='text')cols.push(k);});
+  let last=cols.length;while(last>0&&cols[last-1]==='ign')last--;
+  cols.ks=ks; cols.core=last; return cols;
+}
+const UNIT=/^(mm|in|inch|um|µm|μm|deg|°|%)$/i;
+function rowTokens(cells){
+  const toks=[];for(const c of cells)for(const t of c.split(/\s+/))if(t&&!UNIT.test(t))toks.push(t);
+  while(toks.length&&parseNum(toks[toks.length-1])==null)toks.pop();
+  let i=toks.length;while(i>0&&parseNum(toks[i-1])!=null)i--;
+  return {label:toks.slice(0,i).join(' '),nums:toks.slice(i)};
+}
+function interpretTable(files){ // files: [{name, lines:[[cells]]}]
+  const agg=new Map(); let mode=null; const mism=new Set();
+  const add=(name,lsl,usl,vals)=>{name=name.replace(/,/g,' ').replace(/\s+/g,' ').trim(); if(!name) return;
+    if(!agg.has(name))agg.set(name,{name,lsl,usl,values:[],raw:[]});const o=agg.get(name);
+    if(o.lsl==null)o.lsl=lsl;else if(lsl!=null&&Math.abs(o.lsl-lsl)>1e-9)mism.add(name);
+    if(o.usl==null)o.usl=usl;else if(usl!=null&&Math.abs(o.usl-usl)>1e-9)mism.add(name);
+    for(const v of vals){o.raw.push(v);o.values.push(parseNum(v));}};
+  // 1. column layout inside PDF
+  for(const f of files){
+    const li=f.lines.findIndex(c=>/^(lsl|usl)$/i.test((c[0]||'').trim()));
+    if(li>=0){
+      let hi=li-1;while(hi>=0&&f.lines[hi].every(c=>parseNum(c)!=null))hi--;
+      const txt=f.lines.slice(Math.max(hi,0)).map(c=>c.join('\t')).join('\n');
+      const p=parseText(txt); if(p.chars.length){mode='columns';for(const c of p.chars)add(c.name,c.lsl,c.usl,c.values.map(String));}
+    }
+  }
+  if(agg.size) return finish();
+  // 2. header-driven report table
+  for(const f of files){
+    let cols=null;
+    for(const cells of f.lines){
+      const h=isHeader(cells); if(h){cols=h;continue;}
+      if(!cols) continue;
+      let lab, ns, get;
+      if(cells.length===cols.ks.length){ // positional: one cell per header column
+        const ks=cols.ks; lab=cells.filter((c,i)=>ks[i]==='label'||ks[i]==='text').join(' ').trim();
+        const byKind=k=>{const i=ks.indexOf(k);return i>=0?cells[i]:undefined;};
+        get=byKind; ns=null;
+        const kv=[];ks.forEach((k,i)=>{if((k==='act'||k==='val')&&parseNum(cells[i])!=null)kv.push(cells[i]);});
+        if(!kv.length&&parseNum(byKind('lsl'))==null&&parseNum(byKind('usl'))==null&&parseNum(byKind('nom'))==null) continue;
+        if(!lab) continue;
+        cells._vals=kv;
+      }else{
+        const t=rowTokens(cells); if(!t.nums.length) continue;
+        const m=cols.core; lab=t.label; ns=t.nums;
+        if(ns.length>cols.length){lab=(lab+' '+ns.slice(0,ns.length-cols.length).join(' ')).trim();ns=ns.slice(ns.length-cols.length);}
+        else if(ns.length>m&&ns.length<cols.length){/* trailing ignored columns partly text */}
+        if(!lab) continue;
+        get=k=>{const i=cols.indexOf(k);return i>=0&&i<ns.length?ns[i]:undefined;};
+      }
+      let lsl=parseNum(get('lsl')),usl=parseNum(get('usl'));
+      const nom=parseNum(get('nom'));
+      if(nom!=null&&(lsl==null||usl==null)){
+        const ut=get('utol'),lt=get('ltol'),t=get('tol');
+        if(ut!=null&&lt!=null){const u=parseNum(ut),l=parseNum(lt);
+          if(u!=null&&usl==null)usl=nom+(/^\s*[-−–]/.test(ut)?u:Math.abs(u));
+          if(l!=null&&lsl==null)lsl=nom+(/^\s*\+/.test(lt)?l:-Math.abs(l));}
+        else if(t!=null){const tv=Math.abs(parseNum(t));if(usl==null)usl=nom+tv;if(lsl==null)lsl=nom-tv;}
+        else if(ut!=null){usl=nom+Math.abs(parseNum(ut));}
+        else if(lt!=null){lsl=nom-Math.abs(parseNum(lt));}
+      }
+      const vals=cells._vals||[];if(ns)cols.forEach((k,i)=>{if((k==='act'||k==='val')&&i<ns.length&&parseNum(ns[i])!=null)vals.push(ns[i]);});
+      if(vals.length||lsl!=null||usl!=null){mode='report';add(lab,lsl,usl,vals);}
+    }
+  }
+  if([...agg.values()].some(c=>c.values.length)) return finish();
+  agg.clear();
+  // 3. rows: name LSL USL values...
+  for(const f of files)for(const cells of f.lines){const {label,nums}=rowTokens(cells);if(label&&nums.length>=4){mode='rows';add(label,parseNum(nums[0]),parseNum(nums[1]),nums.slice(2));}}
+  if(agg.size) return finish();
+  // 4. bare numbers
+  const raw=[];for(const f of files)for(const cells of f.lines){const toks=cells.join(' ').split(/\s+/).filter(Boolean);if(toks.length&&toks.every(t=>parseNum(t)!=null))raw.push(...toks);}
+  if(raw.length){mode='numbers';add('Measurements',null,null,raw);}
+  return finish();
+  function finish(){return {chars:[...agg.values()].map(c=>({...c,dec:decimalsOf(c.raw)})),mode,mismatch:[...mism]};}
+}
+function charsToText(chars){
+  return 'Characteristic, LSL, USL, values...\n'+chars.map(c=>[c.name,c.lsl??'',c.usl??'',...(c.raw||c.values)].join(', ')).join('\n');
+}
+</script>
+
+<script>
+/* ============ UI ============ */
+const $=s=>document.querySelector(s);
+const cssv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let charts=[]; let RESULTS=[]; let OPT={};
+if(window.pdfjsLib){ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; }
+
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),1800);}
+function msg(t,cls){const e=$('#loadMsg');e.className='msg show '+cls;e.innerHTML=t;}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+$('#target').addEventListener('change',e=>$('#targetCustom').classList.toggle('hidden',e.target.value!=='custom'));
+const drop=$('#drop'), fileIn=$('#file');
+drop.addEventListener('click',()=>fileIn.click());
+drop.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();fileIn.click();}});
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop',e=>handleFiles([...e.dataTransfer.files]));
+fileIn.addEventListener('change',e=>{handleFiles([...e.target.files]);fileIn.value='';});
+
+async function pdfToLines(file){
+  const buf=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  const lines=[];
+  for(let p=1;p<=pdf.numPages;p++){
+    const page=await pdf.getPage(p); const tc=await page.getTextContent();
+    const items=tc.items.filter(i=>i.str&&i.str.trim()).map(i=>({s:i.str,x:i.transform[4],y:i.transform[5],w:i.width,h:Math.abs(i.transform[3])||i.height||8}));
+    const rows=[];
+    items.sort((a,b)=>b.y-a.y||a.x-b.x);
+    for(const it of items){let row=null;for(const r of rows)if(Math.abs(r.y-it.y)<=Math.max(2,it.h*0.45)){row=r;break;}
+      if(!row){row={y:it.y,items:[]};rows.push(row);}row.items.push(it);}
+    rows.sort((a,b)=>b.y-a.y);
+    for(const r of rows){r.items.sort((a,b)=>a.x-b.x);const cells=[];let cur=null;
+      for(const it of r.items){const gap=cur?it.x-(cur.x+cur.w):Infinity;
+        if(cur&&gap<Math.max(1.5,it.h*0.35)){cur.s+=(gap>it.h*0.12?' ':'')+it.s;cur.w=it.x+it.w-cur.x;}
+        else{cur={s:it.s,x:it.x,w:it.w};cells.push(cur);}}
+      const c=cells.map(c=>c.s.trim()).filter(Boolean); if(c.length)lines.push(c);}
+  }
+  return lines;
+}
+
+async function handleFiles(files){
+  if(!files.length)return;
+  msg('Reading '+files.length+' file'+(files.length>1?'s':'')+'…','info');
+  const pdfs=[], texts=[]; const errors=[];
+  for(const f of files){
+    const n=f.name.toLowerCase();
+    try{
+      if(n.endsWith('.pdf')){
+        if(!window.pdfjsLib)throw new Error('PDF reader failed to load');
+        const lines=await pdfToLines(f);
+        if(!lines.length)errors.push(`${esc(f.name)}: no text layer (scanned image?)`);
+        else pdfs.push({name:f.name,lines});
+      }else if(n.endsWith('.xlsx')||n.endsWith('.xls')){
+        const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        texts.push(XLSX.utils.sheet_to_csv(ws,{FS:'\t',blankrows:false}).split('\n').filter(l=>l.replace(/\t/g,'').trim()).join('\n'));
+      }else texts.push(await f.text());
+    }catch(e){errors.push(`${esc(f.name)}: ${esc(e.message||e)}`);}
+  }
+  let out=[], note=[];
+  if(pdfs.length){
+    const res=interpretTable(pdfs);
+    $('#extractBox').classList.remove('hidden');
+    $('#extractPre').textContent=pdfs.map(p=>`── ${p.name} ──\n`+p.lines.map(c=>c.join(' | ')).join('\n')).join('\n\n');
+    if(res.chars.length){
+      out.push(charsToText(res.chars));
+      const modeTxt={report:'inspection-report table',columns:'column table',rows:'row table',numbers:'plain list of numbers'}[res.mode];
+      note.push(`Found <b>${res.chars.length}</b> characteristic${res.chars.length>1?'s':''} in ${pdfs.length} PDF${pdfs.length>1?'s':''} (${modeTxt}).`);
+      if(res.mode==='numbers')note.push('No spec limits found — fill in LSL / USL below.');
+      const noLim=res.chars.filter(c=>c.lsl==null&&c.usl==null).length; if(noLim&&res.mode!=='numbers')note.push(`${noLim} without spec limits — add them below.`);
+      if(res.mismatch.length)note.push(`Spec limits differ between files for: ${res.mismatch.map(esc).join(', ')} (first value used).`);
+    }else errors.push('Could not recognise a measurement table in the PDF. Check the extracted text below and paste the values in the data box.');
+  }
+  if(texts.length){out.push(...texts);note.push(`Loaded ${texts.length} data file${texts.length>1?'s':''}.`);}
+  if(out.length){$('#data').value=out.join('\n');}
+  if(errors.length&&!out.length) msg(errors.join('<br>'),'err');
+  else{ msg(note.join(' ')+(errors.length?'<br>'+errors.join('<br>'):'')+' Review the data, then press <b>Calculate</b>.', errors.length?'err':'ok'); if(out.length)calculate(true);}
+}
+
+$('#calc').addEventListener('click',()=>calculate());
+$('#clear').addEventListener('click',()=>{$('#data').value='';$('#results').classList.add('hidden');$('#loadMsg').className='msg';$('#extractBox').classList.add('hidden');});
+$('#sample').addEventListener('click',()=>{$('#data').value=sampleData();$('#extractBox').classList.add('hidden');msg('Example data loaded (6 machined-part characteristics, 50 parts each).','info');calculate();});
+['target','targetCustom','judge','sub'].forEach(id=>$('#'+id).addEventListener('change',()=>{if(RESULTS.length)calculate(true);}));
+
+function getOpt(){
+  const tv=$('#target').value==='custom'?parseFloat($('#targetCustom').value):parseFloat($('#target').value);
+  return {target:tv>0?tv:1.33,judge:$('#judge').value,sub:Math.max(1,Math.min(10,parseInt($('#sub').value)||1))};
+}
+
+function calculate(quiet){
+  const p=parseText($('#data').value);
+  if(!p.chars.length){msg(p.err||'No characteristics recognised. Check the layout (see "Accepted layouts").','err');return;}
+  OPT=getOpt();
+  RESULTS=p.chars.map(c=>analyze(c,OPT));
+  render();
+  if(!quiet)$('#results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+const STAT={good:{cls:'good',ico:'✓',txt:'Capable'},warn:{cls:'warn',ico:'▲',txt:'Marginal'},crit:{cls:'crit',ico:'✕',txt:'Not capable'},na:{cls:'na',ico:'–',txt:'No result'}};
+const badge=s=>`<span class="badge ${STAT[s].cls}">${STAT[s].ico} ${STAT[s].txt}</span>`;
+const i2=v=>v==null||!isFinite(v)?'—':v.toFixed(2);
+const IDX=()=>OPT.judge==='ppk'?'Ppk':'Cpk';
+
+function render(){
+  charts.forEach(c=>c.destroy()); charts=[];
+  $('#results').classList.remove('hidden');
+  const R=RESULTS, T=OPT.target, idx=IDX();
+  const cnt={good:0,warn:0,crit:0,na:0}; R.forEach(r=>cnt[r.status]++);
+  const valid=R.filter(r=>r.C!=null); const worst=valid.sort((a,b)=>a.C-b.C)[0];
+  $('#kpis').innerHTML=`
+   <div class="kpi"><div class="l">Characteristics</div><div class="v">${R.length}</div><div class="s">target ${idx} ≥ ${T.toFixed(2)}</div></div>
+   <div class="kpi"><div class="l"><span class="dot" style="background:var(--good)"></span>✓ Capable</div><div class="v">${cnt.good}</div><div class="s">${idx} ≥ ${T.toFixed(2)}</div></div>
+   <div class="kpi"><div class="l"><span class="dot" style="background:var(--warning)"></span>▲ Marginal</div><div class="v">${cnt.warn}</div><div class="s">1.00 ≤ ${idx} &lt; ${T.toFixed(2)}</div></div>
+   <div class="kpi"><div class="l"><span class="dot" style="background:var(--critical)"></span>✕ Not capable</div><div class="v">${cnt.crit}</div><div class="s">${idx} &lt; 1.00</div></div>
+   <div class="kpi"><div class="l">Lowest ${idx}</div><div class="v">${worst?i2(worst.C):'—'}</div><div class="s">${worst?esc(worst.name):''}</div></div>`
+   +(cnt.na?`<div class="kpi"><div class="l">No result</div><div class="v">${cnt.na}</div><div class="s">missing limits / data</div></div>`:'');
+
+  const bad=R.filter(r=>r.status==='crit'||r.status==='warn').sort((a,b)=>a.C-b.C);
+  const good=R.filter(r=>r.status==='good'), na=R.filter(r=>r.status==='na');
+  $('#needTitle').textContent=bad.length?`${bad.length} characteristic${bad.length>1?'s':''} below target ${idx} ${T.toFixed(2)}`:'All characteristics meet the target';
+  $('#needList').innerHTML=bad.length?bad.map(r=>`<li>${badge(r.status)}<div><a href="#c-${slug(r.name)}" data-go="${slug(r.name)}">${esc(r.name)}</a> — ${idx} <b>${i2(r.C)}</b>${r.lsl!=null&&r.usl!=null?` (potential ${OPT.judge==='ppk'?'Pp':'Cp'} ${i2(r.Cp2)})`:''}, expected ${fmtPPM(r.ppm)} PPM${r.oos?`, <b>${r.oos}</b> measured out of spec`:''}<div class="why">${mainIssue(r)}</div></div></li>`).join('')
+    :`<li><div class="why">Every characteristic with spec limits reaches ${idx} ≥ ${T.toFixed(2)}.</div></li>`;
+  $('#needList').querySelectorAll('[data-go]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();goTo(a.dataset.go);}));
+
+  renderOverview();
+  renderTable();
+  $('#actCount').textContent=bad.length?`${bad.length}`:'none';
+  $('#actCards').innerHTML=bad.length?'':'<div class="panel" style="color:var(--ink-2)">Nothing to fix — all characteristics meet the target.</div>';
+  bad.forEach(r=>{const el=document.createElement('div');el.className='card';el.id='c-'+slug(r.name);el.innerHTML=cardHead(r)+`<div class="bd">${cardBody(r)}</div>`;$('#actCards').appendChild(el);drawCharts(el,r);});
+  const rest=[...good,...na];
+  $('#okH').classList.toggle('hidden',!rest.length);
+  $('#okCount').textContent=good.length+(na.length?` · ${na.length} without result`:'');
+  $('#okCards').innerHTML='';
+  rest.forEach(r=>{const d=document.createElement('details');d.className='cap-card';d.id='c-'+slug(r.name);
+    d.innerHTML=`<summary><span class="nm">${esc(r.name)}</span><span style="display:flex;gap:12px;align-items:center"><span class="ix">${r.status==='na'?esc(r.naWhy||''):`Cpk ${i2(r.cpk)} · Ppk ${i2(r.ppk)}`}</span>${badge(r.status)}</span></summary><div class="bd" style="padding:16px 18px">${cardBody(r)}</div>`;
+    d.addEventListener('toggle',()=>{if(d.open&&!d._drawn){d._drawn=1;drawCharts(d,r);}});
+    $('#okCards').appendChild(d);});
+}
+function mainIssue(r){
+  const two=r.lsl!=null&&r.usl!=null; const c=r.issue;
+  let t=c==='centering'?'Mean is off-center; spread is fine — re-centering alone fixes it.'
+    :c==='both'?'Off-center and too much variation.'
+    :two?'Too much variation for the tolerance.':'Mean too close to the single spec limit for the current spread.';
+  if(r.rules.any)t+=' Process shows instability.';
+  if(r.ad&&r.ad.p<0.05)t+=' Data not normal.';
+  return t;
+}
+function slug(s){return s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'x';}
+function goTo(id){const el=document.getElementById('c-'+id);if(!el)return;if(el.tagName==='DETAILS')el.open=true;el.scrollIntoView({behavior:'smooth',block:'start'});}
+
+function cardHead(r){
+  return `<div class="hd"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="nm">${esc(r.name)}</span>${badge(r.status)}</div>
+  <div class="ix"><span>Cp <b>${i2(r.cp)}</b></span><span>Cpk <b>${i2(r.cpk)}</b></span><span>Pp <b>${i2(r.pp)}</b></span><span>Ppk <b>${i2(r.ppk)}</b></span></div></div>`;
+}
+function cardBody(r){
+  const f=v=>fmtV(v,r);
+  const s=(l,v)=>`<div class="stat"><div class="l">${l}</div><div class="v">${v}</div></div>`;
+  const ad=r.ad?(r.ad.p<0.001?'<0.001':r.ad.p.toFixed(3)):'—';
+  let h=`<div class="stats">${s('LSL',r.lsl??'—')}${s('USL',r.usl??'—')}${s('n',r.n)}${s('Mean',f(r.mean))}${s('σ within',f(r.sw))}${s('σ overall',f(r.so))}${s('Min / Max',`${f(r.min)} / ${f(r.max)}`)}${s('Exp. PPM',fmtPPM(r.ppm))}${s('Out of spec',r.oos)}${s(IDX()+' 95% LB',i2(r.lb))}${s('Normality p',ad)}</div>`;
+  if(r.n>=2) h+=`<div class="charts2">
+    <div><div class="cap">Distribution vs specification</div>
+      <div class="legend"><span><i class="box" style="background:var(--series-1)"></i>Measured</span><span><i style="background:var(--series-2)"></i>Normal fit (overall)</span><span><i class="dash" style="border-color:var(--critical)"></i>Spec limits</span><span><i class="dash" style="border-color:var(--ink-2)"></i>Mean</span></div>
+      <div class="chartbox" style="height:240px"><canvas data-k="hist"></canvas></div></div>
+    <div><div class="cap">${r.ptsLabel==='Subgroup mean'?'X̄ control chart (subgroup means)':'Individuals control chart'}</div>
+      <div class="legend"><span><i style="background:var(--series-1)"></i>${r.ptsLabel}</span><span><i class="dash" style="border-color:var(--muted)"></i>Control limits (UCL/LCL)</span><span><i class="box" style="background:var(--critical);border-radius:50%"></i>Rule violation</span></div>
+      <div class="chartbox" style="height:240px"><canvas data-k="ctrl"></canvas></div></div></div>`;
+  if(r.sugg.length){
+    h+=`<div class="sugg" style="margin-top:16px"><h4>${r.status==='good'?'Notes':'How to reach '+IDX()+' ≥ '+OPT.target.toFixed(2)}</h4><ol>`+
+      r.sugg.map(x=>`<li><b>${esc(x.t)}<span class="pill">${esc(x.tag)}</span></b><span>${esc(x.d)}</span></li>`).join('')+`</ol></div>`;
+  }
+  return h;
+}
+
+/* ---- chart plugins ---- */
+const refLabels={id:'refLabels',afterDatasetsDraw(c){
+  const {ctx,chartArea:a}=c; const used=[]; ctx.save(); ctx.font='500 11px IBM Plex Sans, sans-serif';
+  c.data.datasets.forEach((ds,i)=>{if(!ds.refLabel||!c.isDatasetVisible(i))return;const meta=c.getDatasetMeta(i);if(!meta.data.length)return;
+    ctx.fillStyle=ds.refColor||cssv('--ink-2');
+    if(ds.refOrient==='v'){const x=meta.data[0].x;ctx.textAlign=x>a.right-40?'right':x<a.left+40?'left':'center';ctx.fillText(ds.refLabel,x,a.top-4);}
+    else{let y=meta.data[0].y;used.sort((p,q)=>p-q);for(const u of used)if(Math.abs(u-y)<11)y=u+11*(y>=u?1:-1)*(1);while(used.some(u=>Math.abs(u-y)<11))y+=11;used.push(y);ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText(ds.refLabel,a.right+4,y);}});
+  ctx.restore();}};
+const barValues={id:'barValues',afterDatasetsDraw(c){
+  if(!c.options.plugins.barValues)return; const {ctx}=c; const meta=c.getDatasetMeta(0); ctx.save();
+  ctx.font='500 11.5px IBM Plex Mono, monospace'; ctx.fillStyle=cssv('--ink'); ctx.textBaseline='middle';
+  meta.data.forEach((b,i)=>{const v=c.data.datasets[0].data[i];if(v==null)return;const neg=v<0;ctx.textAlign=neg?'right':'left';ctx.fillText(v.toFixed(2),b.x+(neg?-5:5),b.y);});
+  const T=c.options.plugins.barValues.target; const xs=c.scales.x; const x=xs.getPixelForValue(T); const a=c.chartArea;
+  ctx.strokeStyle=cssv('--ink');ctx.setLineDash([5,4]);ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(x,a.top);ctx.lineTo(x,a.bottom);ctx.stroke();
+  ctx.setLineDash([]);ctx.font='600 11px IBM Plex Sans, sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText('Target '+T.toFixed(2),x,a.top-3);
+  const x1=xs.getPixelForValue(1); if(T!==1){ctx.strokeStyle=cssv('--muted');ctx.setLineDash([2,3]);ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x1,a.top);ctx.lineTo(x1,a.bottom);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=cssv('--muted');ctx.fillText('1.00',x1,a.top-3);}
+  ctx.restore();}};
+
+function baseOpts(){
+  const g=cssv('--grid'), m=cssv('--muted');
+  Chart.defaults.font.family="'IBM Plex Sans', sans-serif"; Chart.defaults.color=m;
+  return {g,m};
+}
+
+function renderOverview(){
+  const {g,m}=baseOpts(); const idx=IDX(), T=OPT.target;
+  const R=RESULTS.filter(r=>r.C!=null).sort((a,b)=>a.C-b.C);
+  $('#ovCount').textContent=`${idx} by characteristic, lowest first`;
+  $('#ovLegend').innerHTML=`<span><i class="box" style="background:var(--critical)"></i>✕ Not capable (&lt; 1.00)</span><span><i class="box" style="background:var(--warning)"></i>▲ Marginal (1.00 – ${T.toFixed(2)})</span><span><i class="box" style="background:var(--good)"></i>✓ Capable (≥ ${T.toFixed(2)})</span>`;
+  const col={good:cssv('--good'),warn:cssv('--warning'),crit:cssv('--critical')};
+  const box=$('#ovBox'); box.style.height=Math.max(160,R.length*30+60)+'px';
+  const maxV=Math.max(T*1.25,...R.map(r=>Math.min(r.C,6)));
+  const minV=Math.min(0,...R.map(r=>r.C));
+  const c=new Chart($('#ovChart'),{type:'bar',
+    data:{labels:R.map(r=>r.name),datasets:[{data:R.map(r=>+r.C.toFixed(4)),backgroundColor:R.map(r=>col[r.status]),borderRadius:4,borderSkipped:'start',barPercentage:0.72,categoryPercentage:0.9}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,animation:false,layout:{padding:{top:18,right:44}},
+      scales:{x:{min:Math.floor(minV*2)/2,max:maxV>3?Math.ceil(maxV*1.06):Math.ceil(maxV*1.1*2)/2,ticks:{stepSize:maxV>3?1:0.5,includeBounds:false},grid:{color:g},border:{display:false},title:{display:true,text:idx,color:m}},y:{grid:{display:false},ticks:{color:cssv('--ink'),font:{size:12.5}}}},
+      plugins:{legend:{display:false},barValues:{target:T},tooltip:{callbacks:{label:(ctx)=>{const r=R[ctx.dataIndex];return [`${idx} ${i2(r.C)}  ·  ${STAT[r.status].txt}`,`Cp ${i2(r.cp)}  Cpk ${i2(r.cpk)}  Pp ${i2(r.pp)}  Ppk ${i2(r.ppk)}`,`Expected ${fmtPPM(r.ppm)} PPM`];}}}},
+      onClick:(e,els)=>{if(els.length)goTo(slug(R[els[0].index].name));}},
+    plugins:[barValues]});
+  charts.push(c);
+}
+
+function renderTable(){
+  const R=RESULTS, idx=IDX(), T=OPT.target;
+  const cls=v=>v==null?'':v<1?'bad':v<T?'mid':'';
+  const hd=['Characteristic','n','LSL','USL','Mean','σ within','σ overall','Cp','Cpk','Pp','Ppk','Exp. PPM','Out of spec','Normal p','Status'];
+  const sorted=[...R].sort((a,b)=>(a.C??99)-(b.C??99));
+  $('#tbl').innerHTML=`<thead><tr>${hd.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`+sorted.map(r=>{const f=v=>fmtV(v,r);
+    return `<tr class="clickable" data-go="${slug(r.name)}"><td>${esc(r.name)}</td><td class="num">${r.n}</td><td class="num">${r.lsl??'—'}</td><td class="num">${r.usl??'—'}</td><td class="num">${f(r.mean)}</td><td class="num">${f(r.sw)}</td><td class="num">${f(r.so)}</td>
+    <td class="num ${cls(r.cp)}">${i2(r.cp)}</td><td class="num ${OPT.judge==='cpk'?cls(r.cpk):''}">${i2(r.cpk)}</td><td class="num ${cls(r.pp)}">${i2(r.pp)}</td><td class="num ${OPT.judge==='ppk'?cls(r.ppk):''}">${i2(r.ppk)}</td>
+    <td class="num">${fmtPPM(r.ppm)}</td><td class="num ${r.oos?'bad':''}">${r.oos}</td><td class="num ${r.ad&&r.ad.p<0.05?'mid':''}">${r.ad?(r.ad.p<0.001?'<0.001':r.ad.p.toFixed(3)):'—'}</td><td>${badge(r.status)}</td></tr>`;}).join('')+'</tbody>';
+  $('#tbl').querySelectorAll('tr[data-go]').forEach(tr=>tr.addEventListener('click',()=>goTo(tr.dataset.go)));
+}
+
+function drawCharts(el,r){
+  if(r.n<2)return;
+  const {g,m}=baseOpts();
+  const blue=cssv('--series-1'), orange=cssv('--series-2'), crit=cssv('--critical'), ink2=cssv('--ink-2');
+  const f=v=>fmtV(v,r);
+  // histogram
+  const x=r.values; const lo=Math.min(r.min,r.lsl??Infinity), hi=Math.max(r.max,r.usl??-Infinity);
+  const nb=Math.max(6,Math.min(25,Math.ceil(Math.sqrt(r.n))+1));
+  let w=(r.max-r.min)/nb; if(!(w>0))w=(r.so>0?r.so:Math.abs(r.mean)*0.01||1)/2;
+  if(r.res&&w<r.res)w=r.res;
+  const start=r.min-w/2; const bins=[]; for(let v=start;v<=r.max+w/2+1e-12;v+=w)bins.push({x:v+w/2,y:0});
+  x.forEach(v=>{const i=Math.min(bins.length-1,Math.max(0,Math.floor((v-start)/w)));bins[i].y++;});
+  const pad=(hi-lo)*0.08||w*2; const xmin=Math.min(lo,start)-pad, xmax=Math.max(hi,bins[bins.length-1].x+w/2)+pad;
+  const curve=[]; if(r.so>0){for(let i=0;i<=120;i++){const v=xmin+(xmax-xmin)*i/120;curve.push({x:v,y:npdf(v,r.mean,r.so)*r.n*w});}}
+  const ymax=Math.max(...bins.map(b=>b.y),...curve.map(c=>c.y))*1.15;
+  const vline=(v,label,color,dash)=>({type:'line',data:[{x:v,y:0},{x:v,y:ymax}],borderColor:color,borderWidth:2,borderDash:dash||[],pointRadius:0,refLabel:label,refOrient:'v',refColor:color,order:0});
+  const ds=[{type:'bar',data:bins,backgroundColor:blue,borderRadius:3,barPercentage:1,categoryPercentage:1,borderColor:cssv('--surface'),borderWidth:1,order:2,label:'Count'}];
+  if(curve.length)ds.push({type:'line',data:curve,borderColor:orange,borderWidth:2,pointRadius:0,tension:0.3,order:1,label:'Normal fit'});
+  if(r.lsl!=null)ds.push(vline(r.lsl,'LSL '+r.lsl,crit,[6,4]));
+  if(r.usl!=null)ds.push(vline(r.usl,'USL '+r.usl,crit,[6,4]));
+  ds.push(vline(r.mean,'x̄ '+f(r.mean),ink2,[2,3]));
+  charts.push(new Chart(el.querySelector('[data-k=hist]'),{type:'bar',data:{datasets:ds},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,layout:{padding:{top:16}},
+      scales:{x:{type:'linear',min:xmin,max:xmax,grid:{color:g},border:{display:false},ticks:{maxTicksLimit:7,includeBounds:false,callback:v=>+v.toFixed(Math.min(r.dec+1,6))}},y:{min:0,max:Math.ceil(ymax),ticks:{includeBounds:false,precision:0},grid:{color:g},border:{display:false},title:{display:true,text:'Count'}}},
+      plugins:{legend:{display:false},tooltip:{filter:i=>i.dataset.type==='bar'||i.dataset.label==='Normal fit',callbacks:{title:it=>{const b=it[0];if(b.dataset.type==='bar'){const c=b.raw.x;return `${f(c-w/2)} – ${f(c+w/2)}`;}return f(b.raw.x);},label:it=>it.dataset.type==='bar'?`${it.raw.y} values`:`fit ${it.raw.y.toFixed(1)}`}}}},
+    plugins:[refLabels]}));
+  // control chart
+  const p=r.pts; const flagged=new Set([...r.rules.out,...r.rules.run,...r.rules.trend]);
+  const labels=p.map((_,i)=>i+1);
+  const hl=(v,label,color,dash)=>({type:'line',data:p.map(()=>v),borderColor:color,borderWidth:dash?1.5:1.5,borderDash:dash,pointRadius:0,refLabel:label,refOrient:'h',refColor:color,order:2});
+  const cds=[{type:'line',data:p,borderColor:blue,borderWidth:2,pointRadius:p.map((_,i)=>flagged.has(i)?5:(p.length>60?0:3)),pointHoverRadius:6,
+     pointBackgroundColor:p.map((_,i)=>flagged.has(i)?crit:blue),pointBorderColor:cssv('--surface'),pointBorderWidth:p.map((_,i)=>flagged.has(i)?2:1),order:0,label:r.ptsLabel},
+    hl(r.ucl,'UCL',m,[5,4]),hl(r.cl,'CL',ink2,[]),hl(r.lcl,'LCL',m,[5,4])];
+  if(r.lsl!=null)cds.push(hl(r.lsl,'LSL',crit,[2,3]));
+  if(r.usl!=null)cds.push(hl(r.usl,'USL',crit,[2,3]));
+  const all=[...p,r.ucl,r.lcl,...(r.lsl!=null?[r.lsl]:[]),...(r.usl!=null?[r.usl]:[])]; const ymn=Math.min(...all), ymx=Math.max(...all), yp=(ymx-ymn)*0.06||1;
+  charts.push(new Chart(el.querySelector('[data-k=ctrl]'),{type:'line',data:{labels,datasets:cds},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,layout:{padding:{right:38}},interaction:{mode:'index',intersect:false},
+      scales:{x:{grid:{display:false},ticks:{maxTicksLimit:10,autoSkip:true},title:{display:true,text:r.ptsLabel==='Subgroup mean'?'Subgroup':'Part (production order)'}},y:{min:ymn-yp,max:ymx+yp,grid:{color:g},border:{display:false},ticks:{maxTicksLimit:7,includeBounds:false,callback:v=>+v.toFixed(Math.min(r.dec+1,6))}}},
+      plugins:{legend:{display:false},tooltip:{filter:i=>i.datasetIndex===0,callbacks:{label:it=>{const i=it.dataIndex;const why=[];if(r.rules.out.includes(i))why.push('beyond 3σ');if(r.rules.run.includes(i))why.push('run of 8');if(r.rules.trend.includes(i))why.push('trend');return `${f(it.raw)}${why.length?'  ⚠ '+why.join(', '):''}`;}}}}},
+    plugins:[refLabels]}));
+}
+
+/* ---- copy ---- */
+async function copyText(t){try{await navigator.clipboard.writeText(t);toast('Copied to clipboard');}catch(e){const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast('Copied to clipboard');}catch(_){toast('Copy blocked — select the text manually');}ta.remove();}}
+$('#copySum').addEventListener('click',()=>{
+  const idx=IDX(),T=OPT.target; const R=RESULTS; const bad=R.filter(r=>r.status==='crit'||r.status==='warn').sort((a,b)=>a.C-b.C);
+  let t=`PROCESS CAPABILITY SUMMARY (target ${idx} ≥ ${T.toFixed(2)})\n${R.length} characteristics: ${R.filter(r=>r.status==='good').length} capable, ${R.filter(r=>r.status==='warn').length} marginal, ${R.filter(r=>r.status==='crit').length} not capable\n\n`;
+  if(bad.length){t+='BELOW TARGET\n';bad.forEach(r=>{t+=`\n■ ${r.name} — ${idx} ${i2(r.C)} (Cp ${i2(r.cp)}, Cpk ${i2(r.cpk)}, Pp ${i2(r.pp)}, Ppk ${i2(r.ppk)}), exp. ${fmtPPM(r.ppm)} PPM, ${r.oos} out of spec\n  ${mainIssue(r)}\n`;r.sugg.forEach((s,i)=>t+=`  ${i+1}. ${s.t}: ${s.d}\n`);});}
+  else t+='All characteristics meet the target.\n';
+  copyText(t);
+});
+$('#copyCsv').addEventListener('click',()=>{
+  const q=s=>`"${String(s).replace(/"/g,'""')}"`;
+  const t=['Characteristic,n,LSL,USL,Mean,SigmaWithin,SigmaOverall,Cp,Cpk,Pp,Ppk,ExpPPM,OutOfSpec,NormalityP,Status'].concat(RESULTS.map(r=>[q(r.name),r.n,r.lsl??'',r.usl??'',fmtV(r.mean,r),fmtV(r.sw,r),fmtV(r.so,r),i2(r.cp),i2(r.cpk),i2(r.pp),i2(r.ppk),r.ppm==null?'':r.ppm.toFixed(2),r.oos,r.ad?r.ad.p.toFixed(4):'',STAT[r.status].txt].join(','))).join('\n');
+  copyText(t);
+});
+
+/* ---- example data ---- */
+function sampleData(){
+  let s=42; const rnd=()=>{s=(s*1664525+1013904223)%4294967296;return s/4294967296;};
+  const nrm=()=>{const u=rnd()||1e-9,v=rnd();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);};
+  const gen=(n,fn,d)=>Array.from({length:n},(_,i)=>fn(i).toFixed(d));
+  const rows=[
+    ['Bore Ø12.00',11.98,12.02,gen(50,()=>12.001+0.0035*nrm(),4)],
+    ['Overall length 45.0',44.9,45.1,gen(50,()=>45.058+0.016*nrm(),3)],
+    ['Thread depth 10.0',9.8,10.2,gen(50,()=>10.01+0.075*nrm(),3)],
+    ['Flatness',' ',0.05,gen(50,()=>Math.abs(0.018+0.009*nrm()+0.006*Math.abs(nrm())),3)],
+    ['Slot width 30.0',29.9,30.1,gen(50,i=>29.975+i*0.0012+0.008*nrm(),3)],
+    ['Hole position X 25.0',24.95,25.05,gen(50,()=>25.002+0.007*nrm(),3)],
+  ];
+  return 'Characteristic, LSL, USL, values...\n'+rows.map(r=>[r[0],String(r[1]).trim(),r[2],...r[3]].join(', ')).join('\n');
+}
+</script>
+</body>
+</html>

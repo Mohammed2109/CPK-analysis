@@ -1,0 +1,9 @@
+{
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["/samples/*", "*.{pdf,css,js,png,svg,ico}"]
+  },
+  "mimeTypes": {
+    ".pdf": "application/pdf"
+  }
+}
