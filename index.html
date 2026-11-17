@@ -208,6 +208,26 @@ span.oot,.oot{color:var(--crit-ink)!important;font-weight:700}
 .vgrid div i{font-style:normal;color:var(--muted);font-size:10.5px}
 .vgrid div.oot{background:color-mix(in srgb,var(--critical) 14%,var(--surface));color:var(--crit-ink)}
 .vgrid div.oot i{color:var(--crit-ink)}
+.tbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.search{display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:8px;padding:0 10px;background:var(--surface);color:var(--muted);min-width:240px;flex:0 1 300px}
+.search input{border:0;outline:0;background:transparent;padding:7px 0;font-size:14px;width:100%;color:var(--ink);font-family:var(--sans)}
+.search:focus-within{outline:2px solid var(--accent);outline-offset:1px}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;border-radius:0;font-size:12.5px;font-weight:600;padding:7px 10px;border-right:1px solid var(--border);gap:5px}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--ink);color:var(--page)}
+.seg button i{font-style:normal;font-family:var(--mono);font-size:11px;opacity:.7}
+.chk{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--ink-2);cursor:pointer}
+.tcount{margin-left:auto;font-size:12.5px;color:var(--muted);font-family:var(--mono)}
+#tblWrap{max-height:min(560px,70vh)}
+#tblWrap th{position:sticky;top:0;z-index:2;cursor:pointer;user-select:none}
+#tblWrap th:hover{color:var(--ink)}
+#tblWrap th .ar{font-size:10px;margin-left:3px;color:var(--accent)}
+#tblWrap th:first-child{left:0;z-index:3}
+#tblWrap td:first-child{position:sticky;left:0;background:var(--surface);z-index:1;box-shadow:1px 0 0 var(--border)}
+#tblWrap tr.clickable:hover td:first-child{background:var(--surface-2)}
+#tblWrap .none td{text-align:center;color:var(--ink-2);padding:22px}
+@media print{#tblWrap{max-height:none;overflow:visible}.tbar{display:none}}
 #offscreen{position:absolute;left:-10000px;top:0;width:1200px}
 @media print{
   .appbar,#inputSection,.actions,.noprint{display:none!important}
@@ -307,8 +327,16 @@ For <b>TP</b> enter the position tolerance (⌀) in +Tol; empty TP cells are cal
   </div>
 
   <div class="kpis" id="kpis"></div>
-  <div class="sec" style="margin-top:22px"><h3>Summary table</h3><span class="count" id="allCount"></span><span class="line"></span><span class="count noprint">lowest first · click a row for its charts</span></div>
-  <div class="tablewrap" style="max-height:none"><table id="tbl"></table></div>
+  <div class="sec" style="margin-top:22px"><h3>Summary table</h3><span class="count" id="allCount"></span><span class="line"></span><span class="count noprint">click a header to sort · click a row for its charts</span></div>
+  <div class="tbar">
+    <div class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="text" id="tq" placeholder="Search characteristic or point…" aria-label="Search characteristics"></div>
+    <div class="seg" id="tStatus" role="group" aria-label="Filter by status"></div>
+    <select id="tAxis" aria-label="Filter by coordinate" class="hidden"></select>
+    <label class="chk"><input type="checkbox" id="tOos"> Out of spec only</label>
+    <button class="small" id="tClear">Clear filters</button>
+    <span class="tcount" id="tCount"></span>
+  </div>
+  <div class="tablewrap" id="tblWrap"><table id="tbl"></table></div>
   <div class="dash" style="margin-top:22px">
     <div class="card pad"><p class="ct" id="ovTitle">Capability by characteristic</p><p class="cs">Lowest first · click a bar to jump to its charts</p>
       <div class="legend" id="ovLegend"></div><div class="chartbox" id="ovBox"><canvas id="ovChart"></canvas></div></div>
@@ -1111,17 +1139,46 @@ function findBlock(r){
   return `<div class="card find" id="f-${slug(r.name)}"><h4>${esc(r.name)} ${badge(r.status)} <span class="ix">${IDX()} <b>${i2(r.C)}</b></span></h4><div class="issue">${esc(mainIssue(r))}</div><ol>`+
     r.sugg.map(s=>`<li><b>${esc(s.t)}<span class="pill">${esc(s.tag)}</span></b><span>${esc(s.d)}</span></li>`).join('')+`</ol></div>`;
 }
+let TF={q:'',status:'all',axis:'all',oos:false,sort:'C',dir:1};
+const TCOLS=[['name','Characteristic','l'],['n','n'],['lsl','LSL'],['usl','USL'],['mean','Mean'],['sw','σ within'],['so','σ overall'],['cp','Cp'],['cpk','Cpk'],['pp','Pp'],['ppk','Ppk'],['ppm','Exp. PPM'],['oos','Out of spec'],['adp','Normal p'],['status','Status','l']];
+const axisOf=n=>{const m=String(n).match(/·\s*([A-Za-z]{1,3})\s*$/);return m?m[1].toUpperCase():null;};
 function renderTable(){
-  const R=[...RESULTS].sort((a,b)=>(a.C??99)-(b.C??99)), T=OPT.target;
-  const cls=v=>v==null?'':v<1?'bad':v<T?'mid':'';
-  $('#allCount').textContent=`${R.length}`;
-  const hd=['Characteristic','n','LSL','USL','Mean','σ within','σ overall','Cp','Cpk','Pp','Ppk','Exp. PPM','Out of spec','Normal p','Status'];
-  $('#tbl').innerHTML=`<thead><tr>${hd.map((h,i)=>`<th class="${i===0||i===14?'l':''}">${h}</th>`).join('')}</tr></thead><tbody>`+R.map(r=>{const f=v=>fmtV(v,r);
+  const T=OPT.target, cls=v=>v==null?'':v<1?'bad':v<T?'mid':'';
+  // status segment with counts
+  const cnt={all:RESULTS.length,crit:0,warn:0,good:0,na:0}; RESULTS.forEach(r=>cnt[r.status]++);
+  const segs=[['all','All'],['crit','✕ Not capable'],['warn','▲ Marginal'],['good','✓ Capable']].concat(cnt.na?[['na','No result']]:[]);
+  if(TF.status!=='all'&&!cnt[TF.status])TF.status='all';
+  $('#tStatus').innerHTML=segs.map(([k,l])=>`<button class="${TF.status===k?'on':''}" data-s="${k}">${l} <i>${cnt[k]}</i></button>`).join('');
+  const axes=[...new Set(RESULTS.map(r=>axisOf(r.name)).filter(Boolean))].sort();
+  const ax=$('#tAxis'); ax.classList.toggle('hidden',axes.length<2);
+  if(!axes.includes(TF.axis))TF.axis='all';
+  ax.innerHTML=`<option value="all">All coordinates</option>`+axes.map(a=>`<option value="${a}" ${TF.axis===a?'selected':''}>${a} only</option>`).join('');
+  $('#tOos').checked=TF.oos; if($('#tq').value!==TF.q)$('#tq').value=TF.q;
+  // filter
+  const q=TF.q.trim().toLowerCase();
+  let R=RESULTS.filter(r=>(!q||r.name.toLowerCase().includes(q))&&(TF.status==='all'||r.status===TF.status)&&(TF.axis==='all'||axisOf(r.name)===TF.axis)&&(!TF.oos||r.oos>0));
+  // sort
+  const key=TF.sort, dir=TF.dir, val=r=>key==='C'?(r.C??99):key==='adp'?(r.ad?r.ad.p:null):key==='status'?({crit:0,warn:1,good:2,na:3}[r.status]):r[key];
+  R.sort((a,b)=>{const x=val(a),y=val(b);if(typeof x==='string'||typeof y==='string')return dir*String(x??'').localeCompare(String(y??''),undefined,{numeric:true});return dir*((x??Infinity)-(y??Infinity));});
+  $('#allCount').textContent=`${RESULTS.length}`;
+  $('#tCount').textContent=R.length===RESULTS.length?`${R.length} shown`:`${R.length} of ${RESULTS.length} shown`;
+  const on=k=>TF.sort===k||(TF.sort==='C'&&k===(OPT.judge==='ppk'?'ppk':'cpk'));
+  const head=TCOLS.map(([k,l,al])=>`<th class="${al||''}" data-k="${k}" aria-sort="${on(k)?(dir>0?'ascending':'descending'):'none'}">${l}${on(k)?`<span class="ar">${dir>0?'▲':'▼'}</span>`:''}</th>`).join('');
+  const body=R.length?R.map(r=>{const f=v=>fmtV(v,r);
     return `<tr class="clickable" data-n="${esc(r.name)}"><td class="l"><b>${esc(r.name)}</b></td><td class="num">${r.n}</td><td class="num">${r.lsl??'—'}</td><td class="num">${r.usl??'—'}</td><td class="num">${f(r.mean)}</td><td class="num">${f(r.sw)}</td><td class="num">${f(r.so)}</td>
     <td class="num ${cls(r.cp)}">${i2(r.cp)}</td><td class="num ${OPT.judge==='cpk'?cls(r.cpk):''}">${i2(r.cpk)}</td><td class="num ${cls(r.pp)}">${i2(r.pp)}</td><td class="num ${OPT.judge==='ppk'?cls(r.ppk):''}">${i2(r.ppk)}</td>
-    <td class="num">${fmtPPM(r.ppm)}</td><td class="num ${r.oos?'bad':''}">${r.oos}</td><td class="num ${r.ad&&r.ad.p<0.05?'mid':''}">${r.ad?(r.ad.p<0.001?'<0.001':r.ad.p.toFixed(3)):'—'}</td><td class="l">${badge(r.status)}</td></tr>`;}).join('')+'</tbody>';
-  $('#tbl').querySelectorAll('tr[data-n]').forEach(tr=>tr.addEventListener('click',()=>goTo(RESULTS.find(r=>r.name===tr.dataset.n))));
+    <td class="num">${fmtPPM(r.ppm)}</td><td class="num ${r.oos?'bad':''}">${r.oos}</td><td class="num ${r.ad&&r.ad.p<0.05?'mid':''}">${r.ad?(r.ad.p<0.001?'<0.001':r.ad.p.toFixed(3)):'—'}</td><td class="l">${badge(r.status)}</td></tr>`;}).join('')
+    :`<tr class="none"><td colspan="${TCOLS.length}">No characteristics match the search / filters.</td></tr>`;
+  $('#tbl').innerHTML=`<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
 }
+$('#tbl').addEventListener('click',e=>{const th=e.target.closest('th[data-k]');if(th){const k=th.dataset.k==='cpk'&&OPT.judge==='cpk'||th.dataset.k==='ppk'&&OPT.judge==='ppk'?th.dataset.k:th.dataset.k;
+    if(TF.sort===k)TF.dir=-TF.dir;else{TF.sort=k;TF.dir=(k==='name'||k==='status'||k==='mean'||k==='lsl'||k==='usl')?1:(['oos','ppm','sw','so'].includes(k)?-1:1);}renderTable();return;}
+  const tr=e.target.closest('tr[data-n]');if(tr)goTo(RESULTS.find(r=>r.name===tr.dataset.n));});
+let tqT=null; $('#tq').addEventListener('input',e=>{clearTimeout(tqT);tqT=setTimeout(()=>{TF.q=e.target.value;renderTable();},150);});
+$('#tStatus').addEventListener('click',e=>{const b=e.target.closest('[data-s]');if(!b)return;TF.status=b.dataset.s;renderTable();});
+$('#tAxis').addEventListener('change',e=>{TF.axis=e.target.value;renderTable();});
+$('#tOos').addEventListener('change',e=>{TF.oos=e.target.checked;renderTable();});
+$('#tClear').addEventListener('click',()=>{TF={...TF,q:'',status:'all',axis:'all',oos:false};$('#tq').value='';renderTable();});
 function goTo(r){if(!r)return;const el=document.getElementById(slug(r.name));if(!el)return;if(el._lazy){const f=el._lazy;el._lazy=null;if(IO)IO.unobserve(el);f();}if(el.tagName==='DETAILS')el.open=true;el.scrollIntoView({behavior:'smooth',block:'start'});}
 
 /* ================= exports ================= */
