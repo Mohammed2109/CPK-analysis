@@ -228,6 +228,51 @@ span.oot,.oot{color:var(--crit-ink)!important;font-weight:700}
 #tblWrap tr.clickable:hover td:first-child{background:var(--surface-2)}
 #tblWrap .none td{text-align:center;color:var(--ink-2);padding:22px}
 @media print{#tblWrap{max-height:none;overflow:visible}.tbar{display:none}}
+.nav{display:flex;gap:2px;margin-left:18px;background:rgba(255,255,255,.08);border-radius:9px;padding:3px}
+.nav button{background:transparent;border:0;color:rgba(255,255,255,.75);font-size:13.5px;padding:6px 12px;border-radius:7px}
+.nav button.on{background:#fff;color:#14213d}
+.nav button:not(.on):hover{color:#fff}
+.dv-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 14px;margin-bottom:12px}
+.dv-bar .grp{display:inline-flex;align-items:center;gap:4px}
+.dv-bar .mono{font-family:var(--mono);font-size:12.5px;min-width:54px;text-align:center;color:var(--ink-2)}
+.dw-name{font-size:13px;color:var(--ink-2);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dlbtn{background:var(--ink);color:var(--page);border-color:var(--ink)}
+.dv-main{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:12px}
+@media (max-width:980px){.dv-main{grid-template-columns:1fr}}
+.dv-wrap{overflow:auto;height:calc(100vh - 190px);min-height:420px;position:relative;background:var(--surface-3)}
+.dv-stage{position:relative;margin:18px auto;box-shadow:0 2px 12px rgba(0,0,0,.18);background:#fff;width:max-content}
+.dv-stage canvas{display:block}
+.dv-stage.placing{cursor:crosshair}
+#dwSvg{position:absolute;inset:0;pointer-events:none;overflow:visible}
+#dwOverlay{position:absolute;inset:0;pointer-events:none}
+.dv-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:30px;color:var(--ink-2);font-size:14px;border:2px dashed transparent;border-radius:12px}
+.dv-empty b{color:var(--ink);font-size:16px}
+.dv-empty span{max-width:520px}
+.dv-wrap.over .dv-empty{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 6%,transparent)}
+.co{position:absolute;pointer-events:auto;background:#fff;color:#0b0b0b;border:.17em solid #898781;border-radius:.55em;font:500 1em/1.32 var(--sans);padding:.25em .6em .35em;min-width:6.5em;box-shadow:0 2px 8px rgba(0,0,0,.18);cursor:grab;user-select:none;touch-action:none;white-space:nowrap;transform-origin:0 0}
+.co:active{cursor:grabbing}
+.co.crit{border-color:#d03b3b}.co.warn{border-color:#e0a000}.co.good{border-color:#0ca30c}
+.co .h{font-weight:700;font-size:1.04em;display:flex;justify-content:space-between;gap:.7em;border-bottom:1px solid #e1e0d9;margin-bottom:.15em;padding-bottom:.08em}
+.co .h i{font-style:normal;font-weight:500;color:#898781;font-size:.82em}
+.co .r{display:flex;justify-content:space-between;gap:.9em;font-family:var(--mono);font-size:.95em}
+.co .r b{font-family:var(--sans)}
+.co .crit{color:#b02a2a;font-weight:700}.co .warn{color:#8a5a00;font-weight:700}.co .good{color:#006300}
+.co .oot{color:#b02a2a;font-size:.85em;font-family:var(--sans);font-weight:700}
+.co .rs{position:absolute;right:-.45em;bottom:-.45em;width:1.1em;height:1.1em;min-width:10px;min-height:10px;border-radius:50%;background:#fff;border:2px solid currentColor;color:#52514e;cursor:nwse-resize;opacity:0;transition:opacity .15s}
+.co:hover .rs{opacity:1}
+.co.flash{animation:fl 1.2s 2}
+@keyframes fl{50%{box-shadow:0 0 0 6px rgba(42,120,214,.45)}}
+.dv-side{padding:12px 12px;height:calc(100vh - 190px);min-height:420px;overflow:auto}
+.dv-side-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.dv-side-hd .mono{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.dv-hint{font-size:12px;color:var(--ink-2);margin-bottom:10px}
+.pt{display:flex;align-items:center;gap:8px;padding:7px 6px;border-bottom:1px solid var(--border);font-size:13px}
+.pt .d{width:9px;height:9px;border-radius:50%;flex:none}
+.pt .nm{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pt .nm small{display:block;font-weight:400;color:var(--muted);font-size:11px;white-space:normal}
+.pt .nf{color:var(--crit-ink)}
+.pt button{font-size:11.5px;padding:3px 7px;font-weight:500}
+.pt.placing{background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:6px}
 #offscreen{position:absolute;left:-10000px;top:0;width:1200px}
 @media print{
   .appbar,#inputSection,.actions,.noprint{display:none!important}
@@ -244,6 +289,7 @@ span.oot,.oot{color:var(--crit-ink)!important;font-weight:700}
     <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><rect x="1" y="1" width="24" height="24" rx="6" fill="none" stroke="#fff" stroke-opacity=".35"/><path d="M4 19 C8 19 9 7 13 7 S18 19 22 19" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/><line x1="6" y1="5" x2="6" y2="21" stroke="#e66767" stroke-width="1.5" stroke-dasharray="2 2"/><line x1="20" y1="5" x2="20" y2="21" stroke="#e66767" stroke-width="1.5" stroke-dasharray="2 2"/></svg>
     Process Capability Analyzer <small>Cp · Cpk · Pp · Ppk</small>
   </div>
+  <nav class="nav" aria-label="Pages"><button class="on" data-view="report">Analysis</button><button data-view="drawing">Drawing summary</button></nav>
   <div class="sp"></div>
   <button class="small dl hidden" id="topPdf"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></svg>Download PDF report</button>
   <button class="small hidden" id="topXlsx"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></svg>Excel</button>
@@ -367,6 +413,39 @@ For <b>TP</b> enter the position tolerance (⌀) in +Tol; empty TP cells are cal
     <dt>95% lower bound</dt><dd>One-sided confidence bound on the index (Bissell). Small samples give wide uncertainty.</dd>
     <dt>Recommendations</dt><dd>Generic engineering guidance computed from the data — verify against your process knowledge.</dd>
   </dl></div>
+</section>
+
+<section id="drawingView" class="hidden">
+  <div class="card dv-bar">
+    <button class="primary" id="dwUpload"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>Upload drawing (PDF)</button>
+    <input type="file" id="dwFile" accept=".pdf" class="hidden">
+    <span class="dw-name" id="dwName"></span>
+    <span class="grp"><button class="small" id="dwPrev" aria-label="Previous page">‹</button><span id="dwPage" class="mono">–</span><button class="small" id="dwNext" aria-label="Next page">›</button></span>
+    <span class="grp"><button class="small" id="dwOut" aria-label="Zoom out">−</button><span id="dwZoom" class="mono">–</span><button class="small" id="dwIn" aria-label="Zoom in">+</button><button class="small" id="dwFit">Fit</button></span>
+    <label class="chk" title="Size of all summary boxes">Box size <input type="range" id="dwSize" min="40" max="300" step="10" value="100" style="width:110px"><span id="dwSizeV" class="mono" style="min-width:40px">100%</span></label>
+    <label class="chk"><input type="checkbox" id="dwBelow"> Only below target</label>
+    <label class="chk" title="Minimum number of matching characters between a point name and the drawing text">Min. match <input type="number" id="dwMin" value="7" min="1" max="30" style="width:58px"> chars</label>
+    <button class="small" id="dwAuto" title="Search the drawing text for point numbers again">Find points again</button>
+    <span style="flex:1"></span>
+    <button class="small" id="dwPng">PNG</button>
+    <button class="small dlbtn" id="dwPdf"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></svg>Annotated PDF</button>
+  </div>
+  <div class="dv-main">
+    <div class="card dv-wrap" id="dwWrap">
+      <div class="dv-stage hidden" id="dwStage"><canvas id="dwCanvas"></canvas><svg id="dwSvg"></svg><div id="dwOverlay"></div></div>
+      <div class="dv-empty" id="dwEmpty">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" style="color:var(--muted)"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="10" r="2.5"/><path d="M14 8h4M14 12h4M6 16h12"/></svg>
+        <b>Drop the drawing (print) PDF here</b>
+        <span>Point numbers printed on the drawing (balloons such as <i>101</i>, <i>P5</i>) are found automatically and the capability summary is placed next to each one. Points that aren't found can be placed with one click.</span>
+        <span id="dwNeedData" class="hidden" style="color:var(--crit-ink)">Load measurement data on the Analysis page first.</span>
+      </div>
+    </div>
+    <aside class="card dv-side">
+      <div class="dv-side-hd"><b>Points</b><span id="dwFound" class="mono"></span></div>
+      <div class="dv-hint" id="dwHint">Drag a callout to move it. Use <b>Place</b> then click the drawing to position a point by hand.</div>
+      <div id="dwList"></div>
+    </aside>
+  </div>
 </section>
 </div>
 <div id="offscreen" aria-hidden="true"></div>
@@ -1073,7 +1152,8 @@ function ctrlCfg(r,th){
 function render(){
   charts.forEach(c=>c.destroy()); charts=[]; if(IO)IO.disconnect();
   IO=('IntersectionObserver' in window)?new IntersectionObserver(ents=>ents.forEach(en=>{if(en.isIntersecting){const el=en.target;IO.unobserve(el);if(el._lazy){const f=el._lazy;el._lazy=null;f();}}}),{rootMargin:'600px 0px'}):null;
-  $('#results').classList.remove('hidden'); $('#topPdf').classList.remove('hidden'); $('#topXlsx').classList.remove('hidden');
+  if(curView()==='report')$('#results').classList.remove('hidden'); $('#topPdf').classList.remove('hidden'); $('#topXlsx').classList.remove('hidden');
+  if(DW.pdf){dwAutoFind(false);if(curView()==='drawing')dwOverlay();} else if(curView()==='drawing')dwList();
   const R=RESULTS,T=OPT.target,idx=IDX(),th=screenTheme();
   const cnt={good:0,warn:0,crit:0,na:0}; R.forEach(r=>cnt[r.status]++);
   const valid=R.filter(r=>r.C!=null).sort((a,b)=>a.C-b.C); const worst=valid[0];
@@ -1323,6 +1403,246 @@ $('#copySum').addEventListener('click',()=>{
   if(bad.length){t+='\nBELOW TARGET\n';bad.forEach(r=>{t+=`\n■ ${r.name} — ${idx} ${i2(r.C)} (Cp ${i2(r.cp)}, Cpk ${i2(r.cpk)}, Pp ${i2(r.pp)}, Ppk ${i2(r.ppk)}), exp. ${fmtPPM(r.ppm)} PPM, ${r.oos} out of spec\n  ${mainIssue(r)}\n`;r.sugg.forEach((s,i)=>t+=`  ${i+1}. ${s.t}: ${s.d}\n`);});}
   copyText(t);
 });
+
+
+/* ================= drawing summary ================= */
+const DW={pdf:null,name:'',key:'',page:1,n:0,zoom:1,pages:[],pos:{},placing:null,rendering:null,scale:1,vp:null};
+function setView(v){
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('on',b.dataset.view===v));
+  $('#inputSection').classList.toggle('hidden',v!=='report');
+  $('#results').classList.toggle('hidden',v!=='report'||!RESULTS.length);
+  $('#drawingView').classList.toggle('hidden',v!=='drawing');
+  if(v==='drawing'){$('#dwNeedData').classList.toggle('hidden',!!RESULTS.length);if(DW.pdf){dwAutoFind(false);dwRender();}else dwList();}
+  window.scrollTo(0,0);
+}
+document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
+const curView=()=>$('#drawingView').classList.contains('hidden')?'report':'drawing';
+const AXORD=['X','Y','Z','D','DIA','R','POS','TP'];
+function axisSplit(name){
+  const n=String(name).trim(); let m;
+  if(n.includes(' · ')){const p=n.split(' · ');return {id:p.slice(0,-1).join(' · ').trim(),lab:p[p.length-1].trim().toUpperCase()};}
+  m=n.match(/^(.*?)(?:[\s_\-.:\/]+|(?<=\d))(X|Y|Z|TP|T\.P\.|D|DIA|DIAM|POS|R)$/i);
+  if(m&&m[1].trim())return {id:m[1].trim(),lab:m[2].toUpperCase().replace(/\./g,'')};
+  m=n.match(/^(X|Y|Z|TP|D|DIA|POS)[\s_\-.:\/]+(.+)$/i);
+  if(m)return {id:m[2].trim(),lab:m[1].toUpperCase()};
+  return {id:n,lab:''};
+}
+function dwGroups(){
+  const m=new Map();
+  RESULTS.forEach(r=>{const {id,lab}=axisSplit(r.name);
+    if(!m.has(id))m.set(id,{id,rows:[]}); m.get(id).rows.push({lab,r});});
+  const rank={crit:0,warn:1,good:2,na:3}; const ord=l=>{const i=AXORD.indexOf(l);return i<0?50:i;};
+  m.forEach(g=>{g.rows.sort((a,b)=>ord(a.lab)-ord(b.lab)||String(a.lab).localeCompare(b.lab));});
+  m.forEach(g=>{g.worst=g.rows.reduce((a,x)=>rank[x.r.status]<rank[a]?x.r.status:a,'na');g.C=Math.min(...g.rows.map(x=>x.r.C??99));});
+  return [...m.values()];
+}
+const normTok=t=>String(t).toUpperCase().replace(/[^A-Z0-9.]/g,'').replace(/^\.+|\.+$/g,'');
+let DWSIZE=100; try{const v=parseInt(localStorage.getItem('cpk-dw-size'));if(v>0)DWSIZE=v;}catch(e){}
+const coBase=page=>dwUnit(page)*0.9; // box font size in PDF units at 100%
+let DWMIN=7; try{const v=parseInt(localStorage.getItem('cpk-dw-min'));if(v>0)DWMIN=v;}catch(e){}
+function dwCandidates(){
+  // every word and every whole text line on the drawing, with its position
+  const out=[];
+  DW.pages.forEach((pg,pi)=>pg.items.forEach(it=>{
+    const t=it.transform, str=it.str; if(!str||!str.trim())return;
+    const len=Math.hypot(t[0],t[1])||1, ux=t[0]/len, uy=t[1]/len, px=-uy, py=ux, w=it.width||0, h=it.height||Math.abs(t[3])||8;
+    const at=f=>[t[4]+ux*w*f+px*h*0.35, t[5]+uy*w*f+py*h*0.35];
+    const re=/\S+/g; let m; const words=[];
+    while((m=re.exec(str))){const [x,y]=at((m.index+m[0].length/2)/str.length);const n=normTok(m[0]);if(n){words.push(1);out.push({page:pi+1,x,y,h,n,txt:m[0],single:str.trim()===m[0]});}}
+    if(words.length>1&&str.length<=60){const [x,y]=at(0.5);const n=normTok(str);if(n)out.push({page:pi+1,x,y,h,n,txt:str.trim(),single:false,line:true});}
+  }));
+  return out;
+}
+function lcsLen(a,b){ // longest common substring length
+  let best=0; const prev=new Array(b.length+1).fill(0), cur=new Array(b.length+1).fill(0);
+  for(let i=1;i<=a.length;i++){for(let j=1;j<=b.length;j++){cur[j]=a[i-1]===b[j-1]?prev[j-1]+1:0;if(cur[j]>best)best=cur[j];}for(let j=0;j<=b.length;j++){prev[j]=cur[j];cur[j]=0;}}
+  return best;
+}
+function dwMatches(ids){
+  const C=dwCandidates(), K=Math.max(1,DWMIN);
+  const exact=new Map(); C.forEach(c=>{if(!exact.has(c.n))exact.set(c.n,[]);exact.get(c.n).push(c);});
+  const grams=new Map(); C.forEach((c,ci)=>{if(c.n.length<K)return;const seen=new Set();for(let i=0;i+K<=c.n.length;i++){const g=c.n.substr(i,K);if(seen.has(g))continue;seen.add(g);if(!grams.has(g))grams.set(g,[]);grams.get(g).push(ci);}});
+  const pairs=[];
+  ids.forEach(id=>{const N=normTok(id); if(!N)return;
+    // exact match always counts (needed for short point numbers like 101)
+    const ex=exact.get(N)||[]; ex.forEach(c=>pairs.push({id,c,k:N.length,exact:1,ratio:1}));
+    if(!ex.length&&N.length<K){const d=N.replace(/^[A-Z]+/,'');if(d&&d!==N)(exact.get(d)||[]).forEach(c=>pairs.push({id,c,k:d.length,exact:1,ratio:d.length/N.length}));}
+    if(N.length<K)return;
+    // best partial match: share at least K consecutive characters
+    const cand=new Set(); for(let i=0;i+K<=N.length;i++){(grams.get(N.substr(i,K))||[]).forEach(ci=>cand.add(ci));}
+    cand.forEach(ci=>{const c=C[ci]; if(c.n===N)return; const k=lcsLen(N,c.n); if(k>=K)pairs.push({id,c,k,exact:0,ratio:k/Math.max(N.length,c.n.length)});});
+  });
+  // best first; each drawing label is used once
+  pairs.sort((a,b)=>b.exact-a.exact||b.k-a.k||b.ratio-a.ratio||(b.c.single-a.c.single)||((a.c.line?1:0)-(b.c.line?1:0)));
+  const used=new Set(), res=new Map(), key=c=>c.page+':'+Math.round(c.x)+':'+Math.round(c.y);
+  for(const p of pairs){if(res.has(p.id)||used.has(key(p.c)))continue;res.set(p.id,p);used.add(key(p.c));}
+  return res;
+}
+function dwAutoFind(force){
+  if(!DW.pdf)return 0; const G=dwGroups(); const todo=G.filter(g=>{const cur=DW.pos[g.id];return !(cur&&cur.manual)&&(force||!cur||!cur.page);}).map(g=>g.id);
+  if(!todo.length)return 0;
+  // keep labels already taken by hand-placed / kept points out of the pool
+  const M=dwMatches(todo); let n=0;
+  todo.forEach(id=>{const m=M.get(id); const cur=DW.pos[id];
+    if(m){const U=dwUnit(m.c.page);DW.pos[id]={page:m.c.page,x:m.c.x,y:m.c.y,h:m.c.h,dx:cur&&cur.page===m.c.page&&!force?cur.dx:2.2*U,dy:cur&&cur.page===m.c.page&&!force?cur.dy:-2.2*U,m:m.c.txt,k:m.k,exact:!!m.exact};n++;}
+    else if(force&&cur&&!cur.manual)delete DW.pos[id];});
+  dwSave(); return n;
+}
+function dwUnit(page){const pg=DW.pages[page-1];return pg?Math.max(pg.w,pg.h)/110:10;}
+function dwSave(){try{localStorage.setItem('cpk-dw:'+DW.key,JSON.stringify(DW.pos));}catch(e){}}
+async function dwLoad(file){
+  if(!window.pdfjsLib){toast('PDF reader failed to load');return;}
+  try{
+    const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
+    DW.pdf=pdf; DW.name=file.name; DW.key=file.name+':'+file.size; DW.n=pdf.numPages; DW.page=1; DW.pages=[];
+    for(let i=1;i<=pdf.numPages;i++){const pg=await pdf.getPage(i);const vp=pg.getViewport({scale:1});const tc=await pg.getTextContent();DW.pages.push({w:vp.width,h:vp.height,items:tc.items});}
+    try{DW.pos=JSON.parse(localStorage.getItem('cpk-dw:'+DW.key)||'{}')||{};}catch(e){DW.pos={};}
+    const n=dwAutoFind(false); const txt=DW.pages.reduce((a,p)=>a+p.items.length,0);
+    $('#dwName').textContent=file.name; $('#dwEmpty').classList.add('hidden'); $('#dwStage').classList.remove('hidden');
+    await dwFit();
+    if(!txt)toast('This drawing has no text layer — place the points by hand with “Place”.');
+    else toast(`Found ${Object.keys(DW.pos).filter(k=>DW.pos[k].page).length} of ${dwGroups().length} points on the drawing`);
+  }catch(e){console.error(e);toast('Could not open this PDF: '+e.message);}
+}
+async function dwFit(){if(!DW.pdf)return;const pg=DW.pages[DW.page-1];const W=$('#dwWrap').clientWidth-40,H=$('#dwWrap').clientHeight-40;DW.zoom=Math.max(0.1,Math.min(W/pg.w,H/pg.h));await dwRender();}
+async function dwRender(){
+  if(!DW.pdf)return;
+  const page=await DW.pdf.getPage(DW.page); const dpr=Math.min(window.devicePixelRatio||1,2);
+  const vp=page.getViewport({scale:DW.zoom}); DW.vp=vp; DW.scale=DW.zoom;
+  const cv=$('#dwCanvas'); const maxPx=12000; let r=dpr; if(vp.width*r>maxPx)r=maxPx/vp.width;
+  cv.width=Math.floor(vp.width*r); cv.height=Math.floor(vp.height*r); cv.style.width=vp.width+'px'; cv.style.height=vp.height+'px';
+  const st=$('#dwStage'); st.style.width=vp.width+'px'; st.style.height=vp.height+'px';
+  if(DW.rendering){try{DW.rendering.cancel();}catch(e){}}
+  const task=page.render({canvasContext:cv.getContext('2d'),viewport:page.getViewport({scale:DW.zoom*r})}); DW.rendering=task;
+  dwOverlay();
+  try{await task.promise;}catch(e){}
+  $('#dwPage').textContent=`${DW.page} / ${DW.n}`; $('#dwZoom').textContent=Math.round(DW.zoom*100)+'%';
+}
+function dwToScreen(x,y){return DW.vp.convertToViewportPoint(x,y);}
+function coHTML(g){
+  const idx=IDX(); const cls=s=>s==='crit'?'crit':s==='warn'?'warn':s==='good'?'good':'';
+  const oos=g.rows.reduce((a,x)=>a+x.r.oos,0);
+  return `<div class="h">${esc(g.id)}<i>${idx}</i></div>`+g.rows.map(x=>`<div class="r"><b>${esc(x.lab||'')}</b><span class="${cls(x.r.status)}">${i2(x.r.C)} ${STAT[x.r.status].ico}</span></div>`).join('')+(oos?`<div class="oot">${oos} out of tol.</div>`:'');
+}
+function dwOverlay(){
+  if(!DW.vp)return; const ov=$('#dwOverlay'), svg=$('#dwSvg'); ov.innerHTML=''; let lines='';
+  const below=$('#dwBelow').checked; const col={crit:'#d03b3b',warn:'#e0a000',good:'#0ca30c',na:'#898781'};
+  dwGroups().forEach(g=>{const p=DW.pos[g.id]; if(!p||p.page!==DW.page)return; if(below&&g.worst==='good')return;
+    const [mx,my]=dwToScreen(p.x,p.y); const s=DW.scale;
+    const el=document.createElement('div'); el.className='co '+g.worst; el.dataset.id=g.id; el.innerHTML=coHTML(g)+'<span class="rs" title="Drag to resize this box · double-click the box to reset"></span>';
+    el.style.fontSize=(coBase(p.page)*(DWSIZE/100)*(p.sc||1)*s)+'px';
+    el.style.left=(mx+p.dx*s)+'px'; el.style.top=(my+p.dy*s)+'px'; el.style.transform='translate(0,-100%)';
+    ov.appendChild(el);
+    const bx=mx+p.dx*s, by=my+p.dy*s; // anchor = bottom-left corner of callout
+    lines+=`<line data-id="${esc(g.id)}" x1="${mx}" y1="${my}" x2="${bx}" y2="${by}" stroke="${col[g.worst]}" stroke-width="1.6"/><circle cx="${mx}" cy="${my}" r="${p.h?Math.max(9,p.h*1.75*s):Math.max(9,11*Math.min(1.5,s))}" fill="none" stroke="${col[g.worst]}" stroke-width="2.4"/>${p.h?'':`<circle cx="${mx}" cy="${my}" r="2.2" fill="${col[g.worst]}"/>`}`;
+    dwDrag(el,g.id);
+  });
+  svg.setAttribute('width',DW.vp.width); svg.setAttribute('height',DW.vp.height); svg.innerHTML=lines;
+  dwList();
+}
+function dwDrag(el,id){
+  const rs=el.querySelector('.rs');
+  rs.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();rs.setPointerCapture(e.pointerId);const p=DW.pos[id],sc0=p.sc||1,w0=el.getBoundingClientRect().width,sx=e.clientX,sy=e.clientY;
+    const mv=ev=>{const f=1+((ev.clientX-sx)+(ev.clientY-sy)*0.6)/w0;p.sc=Math.max(0.3,Math.min(5,sc0*f));el.style.fontSize=(coBase(p.page)*(DWSIZE/100)*p.sc*DW.scale)+'px';};
+    const up=()=>{rs.removeEventListener('pointermove',mv);rs.removeEventListener('pointerup',up);dwSave();};
+    rs.addEventListener('pointermove',mv);rs.addEventListener('pointerup',up);});
+  el.addEventListener('dblclick',()=>{const p=DW.pos[id];if(p.sc&&p.sc!==1){p.sc=1;dwSave();dwOverlay();}});
+  el.addEventListener('pointerdown',e=>{if(e.target.classList.contains('rs'))return;e.preventDefault();el.setPointerCapture(e.pointerId);const p=DW.pos[id],sx=e.clientX,sy=e.clientY,dx0=p.dx,dy0=p.dy;let moved=false;
+    const mv=ev=>{moved=true;p.dx=dx0+(ev.clientX-sx)/DW.scale;p.dy=dy0+(ev.clientY-sy)/DW.scale;const [mx,my]=dwToScreen(p.x,p.y);el.style.left=(mx+p.dx*DW.scale)+'px';el.style.top=(my+p.dy*DW.scale)+'px';
+      const ln=[...$('#dwSvg').querySelectorAll('line')].find(l=>l.dataset.id===id);if(ln){ln.setAttribute('x2',mx+p.dx*DW.scale);ln.setAttribute('y2',my+p.dy*DW.scale);}};
+    const up=()=>{el.removeEventListener('pointermove',mv);el.removeEventListener('pointerup',up);if(moved){p.manual=p.manual||false;dwSave();}};
+    el.addEventListener('pointermove',mv);el.addEventListener('pointerup',up);});
+}
+function dwList(){
+  const G=dwGroups(); const col={crit:'var(--critical)',warn:'var(--warning)',good:'var(--good)',na:'var(--muted)'};
+  const rank={crit:0,warn:1,good:2,na:3}; G.sort((a,b)=>rank[a.worst]-rank[b.worst]||String(a.id).localeCompare(String(b.id),undefined,{numeric:true}));
+  const found=G.filter(g=>DW.pos[g.id]&&DW.pos[g.id].page).length;
+  $('#dwFound').textContent=DW.pdf?`${found} of ${G.length} on drawing`:`${G.length} points`;
+  $('#dwList').innerHTML=G.length?G.map(g=>{const p=DW.pos[g.id];return `<div class="pt ${DW.placing===g.id?'placing':''}" data-id="${esc(g.id)}"><span class="d" style="background:${col[g.worst]}"></span>
+    <span class="nm">${esc(g.id)}<small>${IDX()} ${i2(g.C===99?null:g.C)} · ${p&&p.page?`page ${p.page}${p.manual?' · placed by hand':p.m&&!p.exact?` · matched “${esc(p.m)}” (${p.k} chars)`:''}`:'<span class="nf">not on drawing</span>'}</small></span>
+    ${p&&p.page?`<button data-act="go">Show</button>`:''}${DW.pdf?`<button data-act="place">${p&&p.page?'Move':'Place'}</button>`:''}</div>`;}).join(''):'<div class="dv-hint">No results yet.</div>';
+}
+$('#dwList').addEventListener('click',async e=>{const b=e.target.closest('button[data-act]');if(!b)return;const id=b.closest('.pt').dataset.id;
+  if(b.dataset.act==='place'){DW.placing=DW.placing===id?null:id;$('#dwStage').classList.toggle('placing',!!DW.placing);dwList();if(DW.placing)toast(`Click on the drawing where ${id} is`);return;}
+  const p=DW.pos[id]; if(!p)return; if(p.page!==DW.page){DW.page=p.page;await dwRender();}
+  const [mx,my]=dwToScreen(p.x,p.y); const w=$('#dwWrap'); w.scrollTo({left:mx-w.clientWidth/2,top:my-w.clientHeight/2,behavior:'smooth'});
+  const el=[...$('#dwOverlay').children].find(c=>c.dataset.id===id); if(el){el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash');}});
+$('#dwStage').addEventListener('click',e=>{if(!DW.placing||e.target.closest('.co'))return;const r=$('#dwCanvas').getBoundingClientRect();
+  const [x,y]=DW.vp.convertToPdfPoint(e.clientX-r.left,e.clientY-r.top); const U=dwUnit(DW.page);
+  DW.pos[DW.placing]={page:DW.page,x,y,dx:2.2*U,dy:-2.2*U,manual:true}; DW.placing=null; $('#dwStage').classList.remove('placing'); dwSave(); dwOverlay();});
+$('#dwUpload').addEventListener('click',()=>$('#dwFile').click());
+$('#dwFile').addEventListener('change',e=>{const f=e.target.files[0];if(f)dwLoad(f);e.target.value='';});
+const dwWrap=$('#dwWrap');
+['dragenter','dragover'].forEach(ev=>dwWrap.addEventListener(ev,e=>{e.preventDefault();dwWrap.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>dwWrap.addEventListener(ev,e=>{e.preventDefault();dwWrap.classList.remove('over');}));
+dwWrap.addEventListener('drop',e=>{const f=[...e.dataTransfer.files].find(f=>/\.pdf$/i.test(f.name));if(f)dwLoad(f);else toast('Drop a PDF drawing');});
+$('#dwPrev').addEventListener('click',()=>{if(DW.page>1){DW.page--;dwRender();}});
+$('#dwNext').addEventListener('click',()=>{if(DW.page<DW.n){DW.page++;dwRender();}});
+$('#dwIn').addEventListener('click',()=>{DW.zoom=Math.min(8,DW.zoom*1.25);dwRender();});
+$('#dwOut').addEventListener('click',()=>{DW.zoom=Math.max(0.1,DW.zoom/1.25);dwRender();});
+$('#dwFit').addEventListener('click',dwFit);
+$('#dwBelow').addEventListener('change',dwOverlay);
+$('#dwMin').value=DWMIN;
+$('#dwSize').value=DWSIZE; $('#dwSizeV').textContent=DWSIZE+'%';
+$('#dwSize').addEventListener('input',e=>{DWSIZE=+e.target.value;$('#dwSizeV').textContent=DWSIZE+'%';try{localStorage.setItem('cpk-dw-size',DWSIZE);}catch(_){}
+  document.querySelectorAll('#dwOverlay .co').forEach(el=>{const p=DW.pos[el.dataset.id];if(p)el.style.fontSize=(coBase(p.page)*(DWSIZE/100)*(p.sc||1)*DW.scale)+'px';});});
+$('#dwMin').addEventListener('change',e=>{DWMIN=Math.max(1,Math.min(30,parseInt(e.target.value)||7));e.target.value=DWMIN;try{localStorage.setItem('cpk-dw-min',DWMIN);}catch(_){}
+  if(DW.pdf){const n=dwAutoFind(true);dwOverlay();toast(`${n} point${n===1?'':'s'} matched with at least ${DWMIN} characters`);}});
+$('#dwAuto').addEventListener('click',()=>{if(!DW.pdf)return;const n=dwAutoFind(true);dwOverlay();toast(`${n} point${n===1?'':'s'} found from the drawing text (hand-placed points kept)`);});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&DW.placing){DW.placing=null;$('#dwStage').classList.remove('placing');dwList();}});
+// ---- export: annotated drawing ----
+async function dwComposePage(pn){
+  const page=await DW.pdf.getPage(pn); const pg=DW.pages[pn-1]; const e=Math.min(3,7000/Math.max(pg.w,pg.h));
+  const vp=page.getViewport({scale:e}); const cv=document.createElement('canvas'); cv.width=Math.floor(vp.width); cv.height=Math.floor(vp.height);
+  const ctx=cv.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,cv.width,cv.height);
+  await page.render({canvasContext:ctx,viewport:vp}).promise;
+  const U=dwUnit(pn)*e, below=$('#dwBelow').checked;
+  const col={crit:'#d03b3b',warn:'#e0a000',good:'#0ca30c',na:'#898781'}, txt={crit:'#b02a2a',warn:'#8a5a00',good:'#006300',na:'#52514e'};
+  const idx=IDX();
+  dwGroups().forEach(g=>{const p=DW.pos[g.id]; if(!p||p.page!==pn)return; if(below&&g.worst==='good')return;
+    const [mx,my]=vp.convertToViewportPoint(p.x,p.y); const bx=mx+p.dx*e, by=my+p.dy*e; const fs=coBase(pn)*(DWSIZE/100)*(p.sc||1)*e;
+    ctx.strokeStyle=col[g.worst]; ctx.lineWidth=Math.max(1.5,fs*0.13);
+    {const rr1=p.h?Math.max(fs*0.8,p.h*1.75*e):fs*0.95;const L=Math.hypot(bx-mx,by-my)||1;ctx.beginPath();ctx.moveTo(mx+(bx-mx)/L*rr1,my+(by-my)/L*rr1);ctx.lineTo(bx,by);ctx.stroke();}
+    const rr0=p.h?Math.max(fs*0.8,p.h*1.75*e):fs*0.95; ctx.beginPath();ctx.arc(mx,my,rr0,0,Math.PI*2);ctx.lineWidth=Math.max(2,fs*0.18);ctx.stroke();
+    if(!p.h){ctx.fillStyle=col[g.worst];ctx.beginPath();ctx.arc(mx,my,fs*0.2,0,Math.PI*2);ctx.fill();}
+    const oos=g.rows.reduce((a,x)=>a+x.r.oos,0);
+    const lines=[{t:String(g.id),b:true,right:idx,color:'#0b0b0b'}].concat(g.rows.map(x=>({t:x.lab||'',right:`${i2(x.r.C)} ${STAT[x.r.status].ico}`,color:txt[x.r.status],bold:x.r.status!=='good'}))).concat(oos?[{t:`${oos} out of tol.`,color:'#b02a2a',b:true,small:true}]:[]);
+    const font=(b,sz)=>`${b?'700':'500'} ${sz}px "IBM Plex Sans", Helvetica, Arial, sans-serif`;
+    const pad=fs*0.45, lh=fs*1.32; let w=0;
+    lines.forEach(L=>{ctx.font=font(L.b,L.small?fs*0.85:fs);const lw=ctx.measureText(L.t).width;ctx.font=font(L.bold,fs);const rw=L.right?ctx.measureText(L.right).width:0;w=Math.max(w,lw+rw+(L.right?fs*0.9:0));});
+    const bw=w+pad*2, bh=lines.length*lh+pad*1.2, x0=bx, y0=by-bh;
+    ctx.fillStyle='#ffffff';ctx.strokeStyle=col[g.worst];ctx.lineWidth=Math.max(2,fs*0.17);
+    const rr=fs*0.35; ctx.beginPath();ctx.moveTo(x0+rr,y0);ctx.arcTo(x0+bw,y0,x0+bw,y0+bh,rr);ctx.arcTo(x0+bw,y0+bh,x0,y0+bh,rr);ctx.arcTo(x0,y0+bh,x0,y0,rr);ctx.arcTo(x0,y0,x0+bw,y0,rr);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.textBaseline='middle';
+    lines.forEach((L,i)=>{const yy=y0+pad*0.6+lh*(i+0.5);ctx.textAlign='left';ctx.font=font(L.b,L.small?fs*0.85:fs);ctx.fillStyle=i===0?'#0b0b0b':(L.small?L.color:'#0b0b0b');ctx.fillText(L.t,x0+pad,yy);
+      if(L.right){ctx.textAlign='right';ctx.font=font(L.bold,i===0?fs*0.82:fs);ctx.fillStyle=i===0?'#898781':L.color;ctx.fillText(L.right,x0+bw-pad,yy);}
+      if(i===0){ctx.strokeStyle='#e1e0d9';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x0+pad*0.5,yy+lh*0.5);ctx.lineTo(x0+bw-pad*0.5,yy+lh*0.5);ctx.stroke();}});
+  });
+  // legend band added below the drawing (never covers drawing content)
+  const band=Math.max(U*2.6,30*e), out=document.createElement('canvas'); out.width=cv.width; out.height=cv.height+Math.round(band);
+  const c2=out.getContext('2d'); c2.fillStyle='#fff'; c2.fillRect(0,0,out.width,out.height); c2.drawImage(cv,0,0);
+  const T=OPT.target, lf=band*0.30, y0b=cv.height+band/2; c2.fillStyle='#14213d'; c2.fillRect(0,cv.height,out.width,Math.max(2,band*0.04));
+  c2.textBaseline='middle'; c2.textAlign='left'; let x=lf*1.2;
+  c2.fillStyle='#0b0b0b'; c2.font=`700 ${lf}px "IBM Plex Sans", Helvetica, sans-serif`; const head=`Capability summary  ·  ${new Date().toLocaleDateString()}  ·  target ${idx} ≥ ${T.toFixed(2)}`; c2.fillText(head,x,y0b); x+=c2.measureText(head).width+lf*2;
+  const G=dwGroups().filter(g=>DW.pos[g.id]&&DW.pos[g.id].page===pn); const cnt={good:0,warn:0,crit:0}; G.forEach(g=>{if(cnt[g.worst]!=null)cnt[g.worst]++;});
+  [['#0ca30c',`✓ Capable (${cnt.good})`],['#e0a000',`▲ Marginal 1.00–${T.toFixed(2)} (${cnt.warn})`],['#d03b3b',`✕ Not capable < 1.00 (${cnt.crit})`]].forEach(([c,t])=>{c2.fillStyle=c;c2.fillRect(x,y0b-lf*0.38,lf*0.76,lf*0.76);x+=lf*1.15;c2.fillStyle='#0b0b0b';c2.font=`500 ${lf}px "IBM Plex Sans", Helvetica, sans-serif`;c2.fillText(t,x,y0b);x+=c2.measureText(t).width+lf*1.6;});
+  c2.textAlign='right'; c2.fillStyle='#898781'; c2.font=`500 ${lf*0.85}px "IBM Plex Sans", Helvetica, sans-serif`; c2.fillText('Process Capability Analyzer',out.width-lf*1.2,y0b);
+  return {cv:out,w:pg.w,h:pg.h*(out.height/cv.height)};
+
+}
+$('#dwPdf').addEventListener('click',async()=>{
+  if(!DW.pdf){toast('Upload a drawing first');return;} if(!window.jspdf){toast('PDF library failed to load');return;}
+  const b=$('#dwPdf'),html=b.innerHTML; b.disabled=true;
+  try{const {jsPDF}=window.jspdf; let doc=null;
+    for(let pn=1;pn<=DW.n;pn++){b.textContent=`Page ${pn}/${DW.n}…`;await new Promise(z=>setTimeout(z,0));
+      const {cv,w,h}=await dwComposePage(pn); const o=w>h?'landscape':'portrait';
+      if(!doc)doc=new jsPDF({unit:'pt',format:[w,h],orientation:o,compress:true}); else doc.addPage([w,h],o);
+      doc.addImage(cv.toDataURL('image/jpeg',0.88),'JPEG',0,0,w,h);}
+    if(await saveBlob(doc.output('blob'),DW.name.replace(/\.pdf$/i,'')+'-capability.pdf'))toast('Annotated drawing ready');
+  }catch(e){console.error(e);toast('Could not build PDF: '+e.message);}finally{b.disabled=false;b.innerHTML=html;}
+});
+$('#dwPng').addEventListener('click',async()=>{if(!DW.pdf){toast('Upload a drawing first');return;}
+  const {cv}=await dwComposePage(DW.page); cv.toBlob(async bl=>{if(await saveBlob(bl,DW.name.replace(/\.pdf$/i,'')+`-p${DW.page}-capability.png`))toast('PNG ready');},'image/png');});
 
 /* ================= example ================= */
 function sampleChars(){
