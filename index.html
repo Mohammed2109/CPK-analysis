@@ -258,6 +258,16 @@ span.oot,.oot{color:var(--crit-ink)!important;font-weight:700}
 .co .r b{font-family:var(--sans)}
 .co .crit{color:#b02a2a;font-weight:700}.co .warn{color:#8a5a00;font-weight:700}.co .good{color:#006300}
 .co .oot{color:#b02a2a;font-size:.85em;font-family:var(--sans);font-weight:700}
+.mk{position:absolute;pointer-events:auto;border-radius:50%;cursor:move;touch-action:none}
+.mk:hover{background:rgba(42,120,214,.12);box-shadow:0 0 0 2px rgba(42,120,214,.5)}
+.co .g{display:grid;grid-template-columns:auto auto auto;column-gap:.9em;align-items:baseline}
+.co .g i{font-style:normal;font-weight:500;color:#898781;font-size:.78em;text-align:right}
+.co .g b{font-family:var(--sans);font-size:.95em}
+.co .g span{font-family:var(--mono);font-size:.95em;text-align:right}
+.co .g .m{color:#0b0b0b}
+.co .del{position:absolute;top:-.6em;right:-.6em;width:1.35em;height:1.35em;min-width:16px;min-height:16px;padding:0;border-radius:50%;border:1.5px solid #d03b3b;background:#fff;color:#d03b3b;font:700 1em/1 var(--sans);display:none;align-items:center;justify-content:center;cursor:pointer}
+.co:hover .del{display:flex}
+.co .del:hover{background:#d03b3b;color:#fff}
 .co .rs{position:absolute;right:-.45em;bottom:-.45em;width:1.1em;height:1.1em;min-width:10px;min-height:10px;border-radius:50%;background:#fff;border:2px solid currentColor;color:#52514e;cursor:nwse-resize;opacity:0;transition:opacity .15s}
 .co:hover .rs{opacity:1}
 .co.flash{animation:fl 1.2s 2}
@@ -272,6 +282,8 @@ span.oot,.oot{color:var(--crit-ink)!important;font-weight:700}
 .pt .nm small{display:block;font-weight:400;color:var(--muted);font-size:11px;white-space:normal}
 .pt .nf{color:var(--crit-ink)}
 .pt button{font-size:11.5px;padding:3px 7px;font-weight:500}
+.pt button.rm{color:var(--crit-ink);padding:3px 8px}
+.pt button.rm:hover{border-color:var(--critical)}
 .pt.placing{background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:6px}
 #offscreen{position:absolute;left:-10000px;top:0;width:1200px}
 @media print{
@@ -442,7 +454,7 @@ For <b>TP</b> enter the position tolerance (⌀) in +Tol; empty TP cells are cal
     </div>
     <aside class="card dv-side">
       <div class="dv-side-hd"><b>Points</b><span id="dwFound" class="mono"></span></div>
-      <div class="dv-hint" id="dwHint">Drag a callout to move it. Use <b>Place</b> then click the drawing to position a point by hand.</div>
+      <div class="dv-hint" id="dwHint">Drag a <b>box</b> to move it, or drag the <b>balloon ring</b> to move the point (the box follows). Hover a box for <b>×</b> to remove it; resize with its corner handle. Use <b>Place</b> then click the drawing to position a point by hand.</div>
       <div id="dwList"></div>
     </aside>
   </div>
@@ -1479,7 +1491,7 @@ function dwMatches(ids){
   return res;
 }
 function dwAutoFind(force){
-  if(!DW.pdf)return 0; const G=dwGroups(); const todo=G.filter(g=>{const cur=DW.pos[g.id];return !(cur&&cur.manual)&&(force||!cur||!cur.page);}).map(g=>g.id);
+  if(!DW.pdf)return 0; const G=dwGroups(); const todo=G.filter(g=>{const cur=DW.pos[g.id];return !(cur&&(cur.manual||cur.hidden))&&(force||!cur||!cur.page);}).map(g=>g.id);
   if(!todo.length)return 0;
   // keep labels already taken by hand-placed / kept points out of the pool
   const M=dwMatches(todo); let n=0;
@@ -1522,47 +1534,75 @@ function dwToScreen(x,y){return DW.vp.convertToViewportPoint(x,y);}
 function coHTML(g){
   const idx=IDX(); const cls=s=>s==='crit'?'crit':s==='warn'?'warn':s==='good'?'good':'';
   const oos=g.rows.reduce((a,x)=>a+x.r.oos,0);
-  return `<div class="h">${esc(g.id)}<i>${idx}</i></div>`+g.rows.map(x=>`<div class="r"><b>${esc(x.lab||'')}</b><span class="${cls(x.r.status)}">${i2(x.r.C)} ${STAT[x.r.status].ico}</span></div>`).join('')+(oos?`<div class="oot">${oos} out of tol.</div>`:'');
+  return `<div class="h">${esc(g.id)}</div><div class="g"><i></i><i>Mean</i><i>${idx}</i>`+
+    g.rows.map(x=>`<b>${esc(x.lab||'')}</b><span class="m">${fmtV(x.r.mean,x.r)}</span><span class="${cls(x.r.status)}">${i2(x.r.C)} ${STAT[x.r.status].ico}</span>`).join('')+
+    `</div>`+(oos?`<div class="oot">${oos} out of tol.</div>`:'');
 }
+const DWCOL={crit:'#d03b3b',warn:'#e0a000',good:'#0ca30c',na:'#898781'};
+function ringR(p,s){return p.h?Math.max(9,p.h*1.75*s):Math.max(9,11*Math.min(1.5,s));}
 function dwOverlay(){
   if(!DW.vp)return; const ov=$('#dwOverlay'), svg=$('#dwSvg'); ov.innerHTML=''; let lines='';
-  const below=$('#dwBelow').checked; const col={crit:'#d03b3b',warn:'#e0a000',good:'#0ca30c',na:'#898781'};
-  dwGroups().forEach(g=>{const p=DW.pos[g.id]; if(!p||p.page!==DW.page)return; if(below&&g.worst==='good')return;
-    const [mx,my]=dwToScreen(p.x,p.y); const s=DW.scale;
-    const el=document.createElement('div'); el.className='co '+g.worst; el.dataset.id=g.id; el.innerHTML=coHTML(g)+'<span class="rs" title="Drag to resize this box · double-click the box to reset"></span>';
+  const below=$('#dwBelow').checked;
+  dwGroups().forEach(g=>{const p=DW.pos[g.id]; if(!p||p.hidden||p.page!==DW.page)return; if(below&&g.worst==='good')return;
+    const [mx,my]=dwToScreen(p.x,p.y); const s=DW.scale, c=DWCOL[g.worst], R=ringR(p,s);
+    // callout box
+    const el=document.createElement('div'); el.className='co '+g.worst; el.dataset.id=g.id;
+    el.innerHTML=coHTML(g)+'<span class="rs" title="Drag to resize this box · double-click the box to reset"></span><button class="del" title="Remove this point from the drawing" aria-label="Remove ${esc(g.id)} from drawing">×</button>';
     el.style.fontSize=(coBase(p.page)*(DWSIZE/100)*(p.sc||1)*s)+'px';
     el.style.left=(mx+p.dx*s)+'px'; el.style.top=(my+p.dy*s)+'px'; el.style.transform='translate(0,-100%)';
-    ov.appendChild(el);
-    const bx=mx+p.dx*s, by=my+p.dy*s; // anchor = bottom-left corner of callout
-    lines+=`<line data-id="${esc(g.id)}" x1="${mx}" y1="${my}" x2="${bx}" y2="${by}" stroke="${col[g.worst]}" stroke-width="1.6"/><circle cx="${mx}" cy="${my}" r="${p.h?Math.max(9,p.h*1.75*s):Math.max(9,11*Math.min(1.5,s))}" fill="none" stroke="${col[g.worst]}" stroke-width="2.4"/>${p.h?'':`<circle cx="${mx}" cy="${my}" r="2.2" fill="${col[g.worst]}"/>`}`;
-    dwDrag(el,g.id);
+    // balloon handle (drag to move the point marker)
+    const mk=document.createElement('div'); mk.className='mk'; mk.dataset.id=g.id; mk.title=`Drag to move ${g.id}`;
+    mk.style.left=(mx-R)+'px'; mk.style.top=(my-R)+'px'; mk.style.width=mk.style.height=(2*R)+'px';
+    ov.appendChild(mk); ov.appendChild(el);
+    lines+=`<line data-id="${esc(g.id)}" x1="${mx}" y1="${my}" x2="${mx+p.dx*s}" y2="${my+p.dy*s}" stroke="${c}" stroke-width="1.6"/><circle data-id="${esc(g.id)}" cx="${mx}" cy="${my}" r="${R}" fill="none" stroke="${c}" stroke-width="2.4"/>${p.h?'':`<circle data-dot="${esc(g.id)}" cx="${mx}" cy="${my}" r="2.2" fill="${c}"/>`}`;
+    dwDrag(el,mk,g.id);
   });
   svg.setAttribute('width',DW.vp.width); svg.setAttribute('height',DW.vp.height); svg.innerHTML=lines;
   dwList();
 }
-function dwDrag(el,id){
+function dwPlace(id){ // reposition everything for one point without rebuilding
+  const p=DW.pos[id], s=DW.scale; const [mx,my]=dwToScreen(p.x,p.y); const R=ringR(p,s);
+  const el=[...$('#dwOverlay').querySelectorAll('.co')].find(x=>x.dataset.id===id), mk=[...$('#dwOverlay').querySelectorAll('.mk')].find(x=>x.dataset.id===id);
+  if(el){el.style.left=(mx+p.dx*s)+'px';el.style.top=(my+p.dy*s)+'px';}
+  if(mk){mk.style.left=(mx-R)+'px';mk.style.top=(my-R)+'px';}
+  $('#dwSvg').querySelectorAll('[data-id],[data-dot]').forEach(n=>{if(n.dataset.id!==id&&n.dataset.dot!==id)return;
+    if(n.tagName==='line'){n.setAttribute('x1',mx);n.setAttribute('y1',my);n.setAttribute('x2',mx+p.dx*s);n.setAttribute('y2',my+p.dy*s);} else {n.setAttribute('cx',mx);n.setAttribute('cy',my);}});
+}
+function dwRemove(id){DW.pos[id]={hidden:true};dwSave();dwOverlay();toast(`${id} removed from the drawing — Restore it from the list`);}
+function dwDrag(el,mk,id){
   const rs=el.querySelector('.rs');
   rs.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();rs.setPointerCapture(e.pointerId);const p=DW.pos[id],sc0=p.sc||1,w0=el.getBoundingClientRect().width,sx=e.clientX,sy=e.clientY;
     const mv=ev=>{const f=1+((ev.clientX-sx)+(ev.clientY-sy)*0.6)/w0;p.sc=Math.max(0.3,Math.min(5,sc0*f));el.style.fontSize=(coBase(p.page)*(DWSIZE/100)*p.sc*DW.scale)+'px';};
     const up=()=>{rs.removeEventListener('pointermove',mv);rs.removeEventListener('pointerup',up);dwSave();};
     rs.addEventListener('pointermove',mv);rs.addEventListener('pointerup',up);});
-  el.addEventListener('dblclick',()=>{const p=DW.pos[id];if(p.sc&&p.sc!==1){p.sc=1;dwSave();dwOverlay();}});
-  el.addEventListener('pointerdown',e=>{if(e.target.classList.contains('rs'))return;e.preventDefault();el.setPointerCapture(e.pointerId);const p=DW.pos[id],sx=e.clientX,sy=e.clientY,dx0=p.dx,dy0=p.dy;let moved=false;
-    const mv=ev=>{moved=true;p.dx=dx0+(ev.clientX-sx)/DW.scale;p.dy=dy0+(ev.clientY-sy)/DW.scale;const [mx,my]=dwToScreen(p.x,p.y);el.style.left=(mx+p.dx*DW.scale)+'px';el.style.top=(my+p.dy*DW.scale)+'px';
-      const ln=[...$('#dwSvg').querySelectorAll('line')].find(l=>l.dataset.id===id);if(ln){ln.setAttribute('x2',mx+p.dx*DW.scale);ln.setAttribute('y2',my+p.dy*DW.scale);}};
-    const up=()=>{el.removeEventListener('pointermove',mv);el.removeEventListener('pointerup',up);if(moved){p.manual=p.manual||false;dwSave();}};
+  const del=el.querySelector('.del');
+  del.addEventListener('pointerdown',e=>e.stopPropagation());
+  del.addEventListener('click',e=>{e.stopPropagation();dwRemove(id);});
+  el.addEventListener('dblclick',e=>{if(e.target.closest('.del'))return;const p=DW.pos[id];if(p.sc&&p.sc!==1){p.sc=1;dwSave();dwOverlay();}});
+  // drag the box: changes only the box offset
+  el.addEventListener('pointerdown',e=>{if(e.target.closest('.rs,.del'))return;e.preventDefault();el.setPointerCapture(e.pointerId);const p=DW.pos[id],sx=e.clientX,sy=e.clientY,dx0=p.dx,dy0=p.dy;let moved=false;
+    const mv=ev=>{moved=true;p.dx=dx0+(ev.clientX-sx)/DW.scale;p.dy=dy0+(ev.clientY-sy)/DW.scale;dwPlace(id);};
+    const up=()=>{el.removeEventListener('pointermove',mv);el.removeEventListener('pointerup',up);if(moved)dwSave();};
     el.addEventListener('pointermove',mv);el.addEventListener('pointerup',up);});
+  // drag the balloon: moves the point marker; the box follows
+  mk.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();mk.setPointerCapture(e.pointerId);const p=DW.pos[id];
+    const [m0x,m0y]=dwToScreen(p.x,p.y), sx=e.clientX, sy=e.clientY; let moved=false;
+    const mv=ev=>{moved=true;const [x,y]=DW.vp.convertToPdfPoint(m0x+ev.clientX-sx,m0y+ev.clientY-sy);p.x=x;p.y=y;dwPlace(id);};
+    const up=()=>{mk.removeEventListener('pointermove',mv);mk.removeEventListener('pointerup',up);if(moved){p.manual=true;dwSave();dwList();}};
+    mk.addEventListener('pointermove',mv);mk.addEventListener('pointerup',up);});
 }
 function dwList(){
   const G=dwGroups(); const col={crit:'var(--critical)',warn:'var(--warning)',good:'var(--good)',na:'var(--muted)'};
   const rank={crit:0,warn:1,good:2,na:3}; G.sort((a,b)=>rank[a.worst]-rank[b.worst]||String(a.id).localeCompare(String(b.id),undefined,{numeric:true}));
-  const found=G.filter(g=>DW.pos[g.id]&&DW.pos[g.id].page).length;
+  const found=G.filter(g=>DW.pos[g.id]&&DW.pos[g.id].page&&!DW.pos[g.id].hidden).length;
   $('#dwFound').textContent=DW.pdf?`${found} of ${G.length} on drawing`:`${G.length} points`;
   $('#dwList').innerHTML=G.length?G.map(g=>{const p=DW.pos[g.id];return `<div class="pt ${DW.placing===g.id?'placing':''}" data-id="${esc(g.id)}"><span class="d" style="background:${col[g.worst]}"></span>
-    <span class="nm">${esc(g.id)}<small>${IDX()} ${i2(g.C===99?null:g.C)} · ${p&&p.page?`page ${p.page}${p.manual?' · placed by hand':p.m&&!p.exact?` · matched “${esc(p.m)}” (${p.k} chars)`:''}`:'<span class="nf">not on drawing</span>'}</small></span>
-    ${p&&p.page?`<button data-act="go">Show</button>`:''}${DW.pdf?`<button data-act="place">${p&&p.page?'Move':'Place'}</button>`:''}</div>`;}).join(''):'<div class="dv-hint">No results yet.</div>';
+    <span class="nm">${esc(g.id)}<small>${IDX()} ${i2(g.C===99?null:g.C)} · ${p&&p.hidden?'<span class="nf">removed from drawing</span>':p&&p.page?`page ${p.page}${p.manual?' · placed by hand':p.m&&!p.exact?` · matched “${esc(p.m)}” (${p.k} chars)`:''}`:'<span class="nf">not on drawing</span>'}</small></span>
+    ${p&&p.hidden?(DW.pdf?`<button data-act="restore">Restore</button>`:''):`${p&&p.page?`<button data-act="go">Show</button>`:''}${DW.pdf?`<button data-act="place">${p&&p.page?'Move':'Place'}</button>`:''}${p&&p.page?`<button data-act="remove" class="rm" title="Remove from drawing" aria-label="Remove ${esc(g.id)} from drawing">×</button>`:''}`}</div>`;}).join(''):'<div class="dv-hint">No results yet.</div>';
 }
 $('#dwList').addEventListener('click',async e=>{const b=e.target.closest('button[data-act]');if(!b)return;const id=b.closest('.pt').dataset.id;
+  if(b.dataset.act==='remove'){dwRemove(id);return;}
+  if(b.dataset.act==='restore'){delete DW.pos[id];const n=dwAutoFind(false);dwSave();dwOverlay();toast(DW.pos[id]&&DW.pos[id].page?`${id} restored`:`${id} restored — not found automatically, use Place`);return;}
   if(b.dataset.act==='place'){DW.placing=DW.placing===id?null:id;$('#dwStage').classList.toggle('placing',!!DW.placing);dwList();if(DW.placing)toast(`Click on the drawing where ${id} is`);return;}
   const p=DW.pos[id]; if(!p)return; if(p.page!==DW.page){DW.page=p.page;await dwRender();}
   const [mx,my]=dwToScreen(p.x,p.y); const w=$('#dwWrap'); w.scrollTo({left:mx-w.clientWidth/2,top:my-w.clientHeight/2,behavior:'smooth'});
@@ -1599,24 +1639,31 @@ async function dwComposePage(pn){
   const U=dwUnit(pn)*e, below=$('#dwBelow').checked;
   const col={crit:'#d03b3b',warn:'#e0a000',good:'#0ca30c',na:'#898781'}, txt={crit:'#b02a2a',warn:'#8a5a00',good:'#006300',na:'#52514e'};
   const idx=IDX();
-  dwGroups().forEach(g=>{const p=DW.pos[g.id]; if(!p||p.page!==pn)return; if(below&&g.worst==='good')return;
+  dwGroups().forEach(g=>{const p=DW.pos[g.id]; if(!p||p.hidden||p.page!==pn)return; if(below&&g.worst==='good')return;
     const [mx,my]=vp.convertToViewportPoint(p.x,p.y); const bx=mx+p.dx*e, by=my+p.dy*e; const fs=coBase(pn)*(DWSIZE/100)*(p.sc||1)*e;
     ctx.strokeStyle=col[g.worst]; ctx.lineWidth=Math.max(1.5,fs*0.13);
     {const rr1=p.h?Math.max(fs*0.8,p.h*1.75*e):fs*0.95;const L=Math.hypot(bx-mx,by-my)||1;ctx.beginPath();ctx.moveTo(mx+(bx-mx)/L*rr1,my+(by-my)/L*rr1);ctx.lineTo(bx,by);ctx.stroke();}
     const rr0=p.h?Math.max(fs*0.8,p.h*1.75*e):fs*0.95; ctx.beginPath();ctx.arc(mx,my,rr0,0,Math.PI*2);ctx.lineWidth=Math.max(2,fs*0.18);ctx.stroke();
     if(!p.h){ctx.fillStyle=col[g.worst];ctx.beginPath();ctx.arc(mx,my,fs*0.2,0,Math.PI*2);ctx.fill();}
     const oos=g.rows.reduce((a,x)=>a+x.r.oos,0);
-    const lines=[{t:String(g.id),b:true,right:idx,color:'#0b0b0b'}].concat(g.rows.map(x=>({t:x.lab||'',right:`${i2(x.r.C)} ${STAT[x.r.status].ico}`,color:txt[x.r.status],bold:x.r.status!=='good'}))).concat(oos?[{t:`${oos} out of tol.`,color:'#b02a2a',b:true,small:true}]:[]);
-    const font=(b,sz)=>`${b?'700':'500'} ${sz}px "IBM Plex Sans", Helvetica, Arial, sans-serif`;
-    const pad=fs*0.45, lh=fs*1.32; let w=0;
-    lines.forEach(L=>{ctx.font=font(L.b,L.small?fs*0.85:fs);const lw=ctx.measureText(L.t).width;ctx.font=font(L.bold,fs);const rw=L.right?ctx.measureText(L.right).width:0;w=Math.max(w,lw+rw+(L.right?fs*0.9:0));});
-    const bw=w+pad*2, bh=lines.length*lh+pad*1.2, x0=bx, y0=by-bh;
+    const font=(b,sz,mono)=>`${b?'700':'500'} ${sz}px ${mono?'"IBM Plex Mono", Menlo, monospace':'"IBM Plex Sans", Helvetica, Arial, sans-serif'}`;
+    const rows=g.rows.map(x=>({l:x.lab||'',m:fmtV(x.r.mean,x.r),c:`${i2(x.r.C)} ${STAT[x.r.status].ico}`,color:txt[x.r.status],bold:x.r.status!=='good'}));
+    const pad=fs*0.5, lh=fs*1.32, gap=fs*0.9, sub=fs*0.78;
+    const mw=(t,f)=>{ctx.font=f;return ctx.measureText(t).width;};
+    const w1=Math.max(...rows.map(r=>mw(r.l,font(true,fs*0.95))),0), w2=Math.max(mw('Mean',font(false,sub)),...rows.map(r=>mw(r.m,font(false,fs*0.95,true)))), w3=Math.max(mw(idx,font(false,sub)),...rows.map(r=>mw(r.c,font(r.bold,fs*0.95,true))));
+    const wHead=mw(String(g.id),font(true,fs*1.04)); const wOos=oos?mw(`${oos} out of tol.`,font(true,fs*0.85)):0;
+    const inner=Math.max(w1+gap+w2+gap+w3,wHead,wOos); const bw=inner+pad*2;
+    const nLines=2+rows.length+(oos?1:0); const bh=nLines*lh+pad*1.0, x0=bx, y0=by-bh;
     ctx.fillStyle='#ffffff';ctx.strokeStyle=col[g.worst];ctx.lineWidth=Math.max(2,fs*0.17);
-    const rr=fs*0.35; ctx.beginPath();ctx.moveTo(x0+rr,y0);ctx.arcTo(x0+bw,y0,x0+bw,y0+bh,rr);ctx.arcTo(x0+bw,y0+bh,x0,y0+bh,rr);ctx.arcTo(x0,y0+bh,x0,y0,rr);ctx.arcTo(x0,y0,x0+bw,y0,rr);ctx.closePath();ctx.fill();ctx.stroke();
-    ctx.textBaseline='middle';
-    lines.forEach((L,i)=>{const yy=y0+pad*0.6+lh*(i+0.5);ctx.textAlign='left';ctx.font=font(L.b,L.small?fs*0.85:fs);ctx.fillStyle=i===0?'#0b0b0b':(L.small?L.color:'#0b0b0b');ctx.fillText(L.t,x0+pad,yy);
-      if(L.right){ctx.textAlign='right';ctx.font=font(L.bold,i===0?fs*0.82:fs);ctx.fillStyle=i===0?'#898781':L.color;ctx.fillText(L.right,x0+bw-pad,yy);}
-      if(i===0){ctx.strokeStyle='#e1e0d9';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x0+pad*0.5,yy+lh*0.5);ctx.lineTo(x0+bw-pad*0.5,yy+lh*0.5);ctx.stroke();}});
+    const rr=fs*0.45; ctx.beginPath();ctx.moveTo(x0+rr,y0);ctx.arcTo(x0+bw,y0,x0+bw,y0+bh,rr);ctx.arcTo(x0+bw,y0+bh,x0,y0+bh,rr);ctx.arcTo(x0,y0+bh,x0,y0,rr);ctx.arcTo(x0,y0,x0+bw,y0,rr);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.textBaseline='middle'; let yy=y0+pad*0.5+lh*0.5;
+    ctx.textAlign='left';ctx.fillStyle='#0b0b0b';ctx.font=font(true,fs*1.04);ctx.fillText(String(g.id),x0+pad,yy);
+    ctx.strokeStyle='#e1e0d9';ctx.lineWidth=Math.max(1,fs*0.06);ctx.beginPath();ctx.moveTo(x0+pad*0.5,yy+lh*0.5);ctx.lineTo(x0+bw-pad*0.5,yy+lh*0.5);ctx.stroke();
+    yy+=lh; const xr2=x0+pad+w1+gap+w2, xr3=x0+bw-pad;
+    ctx.textAlign='right';ctx.fillStyle='#898781';ctx.font=font(false,sub);ctx.fillText('Mean',xr2,yy);ctx.fillText(idx,xr3,yy);
+    rows.forEach(r=>{yy+=lh;ctx.textAlign='left';ctx.fillStyle='#0b0b0b';ctx.font=font(true,fs*0.95);ctx.fillText(r.l,x0+pad,yy);
+      ctx.textAlign='right';ctx.font=font(false,fs*0.95,true);ctx.fillText(r.m,xr2,yy);ctx.fillStyle=r.color;ctx.font=font(r.bold,fs*0.95,true);ctx.fillText(r.c,xr3,yy);});
+    if(oos){yy+=lh;ctx.textAlign='left';ctx.fillStyle='#b02a2a';ctx.font=font(true,fs*0.85);ctx.fillText(`${oos} out of tol.`,x0+pad,yy);}
   });
   // legend band added below the drawing (never covers drawing content)
   const band=Math.max(U*2.6,30*e), out=document.createElement('canvas'); out.width=cv.width; out.height=cv.height+Math.round(band);
