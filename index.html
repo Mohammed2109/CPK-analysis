@@ -179,6 +179,9 @@ details.cap-card{content-visibility:auto;contain-intrinsic-size:auto 52px}
 .mgrid table{width:auto;border-collapse:separate;border-spacing:0}
 .mgrid th,.mgrid td{padding:0;border-bottom:1px solid var(--border);border-right:1px solid var(--border);text-align:center;height:29px;box-sizing:border-box;overflow:hidden}
 .mgrid tr.gap td{border:0;height:auto}
+.mgrid td.rl.pn{padding:0}
+.mgrid td.rl.pn input{text-align:left;font-family:var(--sans);font-weight:600;color:var(--ink);padding-left:10px}
+.mgrid td.rl.pn input::placeholder{color:var(--muted);font-weight:500}
 .mgrid thead th{position:sticky;background:var(--surface-2);z-index:2;padding:6px 4px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mgrid thead tr:first-child th{top:0}
 .mgrid th.rl,.mgrid td.rl{position:sticky;left:0;background:var(--surface-2);z-index:1;text-align:left;padding:0 10px;font-size:12px;font-weight:600;color:var(--ink-2);min-width:96px;white-space:nowrap}
@@ -210,6 +213,8 @@ span.oot,.oot{color:var(--crit-ink)!important;font-weight:700}
 .vlab button{align-self:flex-start;margin-top:4px}
 .vlab .vhint{font-size:11.5px;color:var(--muted);margin-top:4px}
 .vgrid div{cursor:pointer}
+.vgrid.named{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.vgrid.named div i{font-size:11px;color:var(--ink-2)}
 .vgrid div:hover{outline:1.5px solid var(--accent)}
 .vgrid div.ex{background:transparent;border:1px dashed var(--muted);color:var(--muted);text-decoration:line-through}
 .vgrid div.ex i{color:var(--muted)}
@@ -354,6 +359,7 @@ span.oot,.oot{color:var(--crit-ink)!important;font-weight:700}
       </div>
       <div class="mgrid" id="mGrid"></div>
       <div class="mhint"><b>Every cell is editable.</b> Each column is one characteristic: type or paste the <b>Point</b> number and <b>Coordinate</b> (X, Y, Z, TP…), <b>Nominal</b>, <b>+Tol / −Tol</b>, then one measured value per part.
+<br><b>Part names:</b> click a <i>Part 1, Part 2…</i> cell on the left to name it, or paste a column of serial numbers there (paste the names together with their measured values to fill both at once).
 <br><b>Paste many points from Excel:</b> copy your block (with or without a header row) and paste it into any <b>Point</b> cell — one row per point (<i>Point · Coord · Nominal · +Tol · −Tol · values…</i>) or one column per point both work; blank point cells take the point above.
 <br>Tolerances are always used as absolute values: <b>LSL = Nominal − |−Tol|</b>, <b>USL = Nominal + |+Tol|</b> (blue = calculated; type into LSL / USL to override). Empty −Tol = symmetric ±.
 For <b>TP</b> enter the position tolerance (⌀) in +Tol; empty TP cells are calculated as 2·√(ΔX²+ΔY²[+ΔZ²]) from the same point's coordinates. Out-of-tolerance values turn red. The table is kept in this browser until you clear it.</div>
@@ -401,7 +407,7 @@ For <b>TP</b> enter the position tolerance (⌀) in +Tol; empty TP cells are cal
   <div class="kpis" id="kpis"></div>
   <div class="sec" style="margin-top:22px"><h3>Summary table</h3><span class="count" id="allCount"></span><span class="line"></span><span class="count noprint">click a header to sort · click a row for its charts</span></div>
   <div class="tbar">
-    <div class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="text" id="tq" placeholder="Search characteristic or point…" aria-label="Search characteristics"></div>
+    <div class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="text" id="tq" placeholder="Search characteristic, point or group…" aria-label="Search characteristics"></div>
     <div class="seg" id="tStatus" role="group" aria-label="Filter by status"></div>
     <select id="tAxis" aria-label="Filter by coordinate" class="hidden"></select>
     <label class="chk"><input type="checkbox" id="tOos"> Out of spec only</label>
@@ -503,9 +509,10 @@ function decimalsOf(raw){let d=0;for(const r of raw){const s=String(r);const i=s
 const EXCL=new Map(); // characteristic name -> Set of removed value positions
 function analyze(ch,opt){
   const all=ch.values, ex=EXCL.get(ch.name); const exl=ex?[...ex].filter(i=>i<all.length).sort((a,b)=>a-b):[];
-  if(!exl.length){const r=analyzeCore(ch,opt);r.all=all;r.keep=all.map((_,i)=>i);r.ex=[];return r;}
+  const PL=ch.parts||null;
+  if(!exl.length){const r=analyzeCore(ch,opt);r.all=all;r.keep=all.map((_,i)=>i);r.ex=[];r.partsAll=PL;r.parts=PL;r.group=ch.group;return r;}
   const exs=new Set(exl), keep=[]; all.forEach((_,i)=>{if(!exs.has(i))keep.push(i);});
-  const r=analyzeCore({...ch,values:keep.map(i=>all[i])},opt); r.all=all; r.keep=keep; r.ex=exl;
+  const r=analyzeCore({...ch,values:keep.map(i=>all[i])},opt); r.all=all; r.keep=keep; r.ex=exl; r.partsAll=PL; r.parts=PL?keep.map(i=>PL[i]):null; r.group=ch.group;
   const o=analyzeCore(ch,opt); r.orig={C:o.C,pp:o.pp,ppk:o.ppk,cp:o.cp,cpk:o.cpk,status:o.status,n:o.n,mean:o.mean,ppm:o.ppm};
   return r;
 }
@@ -633,8 +640,8 @@ const ROWKEY=[
  ['lsl',/^(lsl|lower spec(ification)?( limit)?|lower limit|low limit|lower|min(imum)?( spec| limit)?|ltl|lo|ugw|utg|untere grenze)$/i],
  ['usl',/^(usl|upper spec(ification)?( limit)?|upper limit|high limit|upper|max(imum)?( spec| limit)?|utl|hi|ogw|otg|obere grenze)$/i],
  ['nom',/^(nom|nominal|target|basic|spec|specification|drawing|dwg)$/i],
- ['utol',/^(\+\s*tol(erance)?|upper tol(erance)?|tol(erance)?\s*\+|plus tol(erance)?|utol|\+)$/i],
- ['ltol',/^(-\s*tol(erance)?|lower tol(erance)?|tol(erance)?\s*-|minus tol(erance)?|ltol|-)$/i],
+ ['utol',/^(\+\s*tol(erance)?|upper tol(erance)?|tol(erance)?\s*\+|plus tol(erance)?|utol|u[\s\-_.]?tol(erance)?|up(per)?[\s\-_.]?tol|hi(gh)?[\s\-_.]?tol|\+)$/i],
+ ['ltol',/^(-\s*tol(erance)?|lower tol(erance)?|tol(erance)?\s*-|minus tol(erance)?|ltol|l[\s\-_.]?tol(erance)?|lo(w|wer)?[\s\-_.]?tol|-)$/i],
  ['tol',/^(±\s*tol(erance)?|tol(erance)?|±)$/i]];
 function rowKey(c){const s=String(c).trim().replace(/[:.]+$/,'').replace(/[−–]/g,'-');for(const [k,re] of ROWKEY)if(re.test(s))return k;return null;}
 const HKEYS=[
@@ -675,23 +682,33 @@ function limitsFromNomTol(nom,ut,lt,t){
   return {lsl:rd(lsl),usl:rd(usl)};
 }
 /* A: one column per characteristic with LSL/USL/Nominal/Tol rows */
+const AXCELL=/^(x|y|z|tp|t\.p\.|d|dia|r|pos|m)$/i;
 function fromLimitRows(rows){
   const lim=[];rows.forEach((r,i)=>{const j=r.findIndex(c=>c!=='');if(j<0)return;const k=rowKey(r[j]);if(k&&r.slice(j+1).some(isNum))lim.push({i,j,k});});
   if(!lim.some(l=>['lsl','usl','nom'].includes(l.k)))return null;
   const c0=lim[0].j, first=lim[0].i;
-  let h=first-1; while(h>=0&&!rows[h].slice(c0+1).some(isText))h--;
-  const head=h>=0?rows[h]:[]; const limIdx=new Set(lim.map(l=>l.i));
+  // header rows directly above the limit rows: name row (most distinct ids), axis row, group row
+  const hdr=[]; for(let h=first-1;h>=0&&hdr.length<6;h--){if(rows[h].slice(c0+1).some(isText))hdr.push(h);else if(hdr.length)break;}
+  const axisRow=hdr.find(h=>{const t=rows[h].slice(c0+1).filter(c=>c!=='');return t.length&&t.filter(c=>AXCELL.test(c)).length>=t.length*0.7;});
+  const cand=hdr.filter(h=>h!==axisRow); let nameRow=cand[0];
+  let best=-1; cand.forEach(h=>{const t=rows[h].slice(c0+1).filter(c=>c!==''&&isText(c));const sc=new Set(t).size+t.reduce((a,c)=>a+Math.min(c.length,20),0)/100;if(sc>best){best=sc;nameRow=h;}});
+  const groupRow=cand.find(h=>h!==nameRow);
+  const h0=hdr.length?Math.min(...hdr):first-1; const headEnd=first-1;
+  // limit rows above the data only (ignore MAX / MIN summary rows below the data)
+  let dataStart=rows.length; for(let i=first+1;i<rows.length;i++){const l=rows[i][c0]||'';if(lim.some(x=>x.i===i))continue;if(rows[i].slice(c0+1).some(isNum)&&!(isText(l)&&!/\d/.test(l))){dataStart=i;break;}}
+  const limU=lim.filter(l=>l.i<dataStart), limIdx=new Set(lim.map(l=>l.i));
   const ncol=Math.max(...rows.map(r=>r.length)); const out=[];
   for(let j=c0+1;j<ncol;j++){
-    const name=head[j]||'';
+    let name=nameRow!=null?(rows[nameRow][j]||''):''; const ax=axisRow!=null?(rows[axisRow][j]||'').toUpperCase():''; const grp=groupRow!=null?(rows[groupRow][j]||''):'';
     if(name&&IDXCOL.test(name))continue;
-    const get=k=>{const l=lim.find(l=>l.k===k);return l?rows[l.i][j]:undefined;};
+    if(name&&ax&&!new RegExp('[\\s_\\-.:/]'+ax.replace(/\./g,'\\.')+'$','i').test(name))name=name+' · '+ax;
+    const get=k=>{const l=limU.find(l=>l.k===k);return l?rows[l.i][j]:undefined;};
     let lsl=parseNum(get('lsl')),usl=parseNum(get('usl'));
     const nt=limitsFromNomTol(parseNum(get('nom')),get('utol'),get('ltol'),get('tol'));
     if(lsl==null)lsl=nt.lsl; if(usl==null)usl=nt.usl;
-    const raw=[];rows.forEach((r,i)=>{if(i<=h||limIdx.has(i))return;const lab=r[c0]||'';if(lab&&isText(lab)&&!/^(part|sample|piece|pc|s\/?n|serial|#|no\.?|meas|reading|run|shot)/i.test(lab)&&!/\d/.test(lab))return;if(isNum(r[j]))raw.push(r[j]);});
+    const raw=[],parts=[];rows.forEach((r,i)=>{if(i<=headEnd||limIdx.has(i))return;const lab=r[c0]||'';if(lab&&isText(lab)&&!/^(part|sample|piece|pc|s\/?n|serial|#|no\.?|meas|reading|run|shot)/i.test(lab)&&!/\d/.test(lab))return;if(isNum(r[j])){raw.push(r[j]);parts.push(lab||'');}});
     if(!raw.length&&lsl==null&&usl==null)continue;
-    out.push({name:name||`Characteristic ${j-c0}`,lsl,usl,raw});
+    out.push({name:name||(ax?`Characteristic ${j-c0} · ${ax}`:`Characteristic ${j-c0}`),lsl,usl,raw,parts:parts.some(Boolean)?parts:null,group:grp||null});
   }
   return out;
 }
@@ -810,12 +827,12 @@ function textToRows(text){
 function mergeChars(list){
   const m=new Map(),mism=new Set();
   for(const c of list){const key=c.name.replace(/\s+/g,' ').trim(); if(!key)continue;
-    if(!m.has(key))m.set(key,{name:key,lsl:c.lsl,usl:c.usl,raw:[]});
+    if(!m.has(key))m.set(key,{name:key,lsl:c.lsl,usl:c.usl,raw:[],parts:[],hasP:false,group:c.group||null});
     const o=m.get(key);
     if(o.lsl==null)o.lsl=c.lsl;else if(c.lsl!=null&&Math.abs(o.lsl-c.lsl)>1e-9)mism.add(key);
     if(o.usl==null)o.usl=c.usl;else if(c.usl!=null&&Math.abs(o.usl-c.usl)>1e-9)mism.add(key);
-    o.raw.push(...c.raw);}
-  return {chars:[...m.values()].map(c=>{if(c.lsl!=null&&c.usl!=null&&c.lsl>c.usl){const t=c.lsl;c.lsl=c.usl;c.usl=t;}return {name:c.name,lsl:c.lsl,usl:c.usl,values:c.raw.map(parseNum),dec:decimalsOf(c.raw.map(String))};}),mismatch:[...mism]};
+    o.raw.push(...c.raw); if(c.parts){o.hasP=true;o.parts.push(...c.parts);}else o.parts.push(...c.raw.map(()=> ''));}
+  return {chars:[...m.values()].map(c=>{if(c.lsl!=null&&c.usl!=null&&c.lsl>c.usl){const t=c.lsl;c.lsl=c.usl;c.usl=t;}return {name:c.name,lsl:c.lsl,usl:c.usl,values:c.raw.map(parseNum),dec:decimalsOf(c.raw.map(String)),parts:c.hasP?c.parts:null,group:c.group};}),mismatch:[...mism]};
 }
 </script>
 
@@ -945,8 +962,8 @@ $('#mAdd').addEventListener('click',()=>{
 $('#mMore').addEventListener('click',()=>{MAN.parts+=5;saveMan();renderMan();});
 $('#mParts').addEventListener('change',e=>{MAN.parts=Math.max(1,Math.min(1000,parseInt(e.target.value)||MAN.parts));saveMan();renderMan();syncMan();});
 $('#mClear').addEventListener('click',()=>{if($('#mClear').dataset.arm!=='1'){$('#mClear').dataset.arm='1';$('#mClear').textContent='Click again to clear';setTimeout(()=>{$('#mClear').dataset.arm='';$('#mClear').textContent='Clear table';},3000);return;}
-  MAN={parts:10,cols:[]};saveMan();$('#mClear').dataset.arm='';$('#mClear').textContent='Clear table';renderMan();});
-const RH=29, CW=96, LW=112; let WIN={pr0:0,pr1:0,c0:0,c1:0,nC:0,nP:0}; let manRaf=0;
+  MAN={parts:10,cols:[],pn:[]};saveMan();$('#mClear').dataset.arm='';$('#mClear').textContent='Clear table';renderMan();});
+const RH=29, CW=96, LW=132; let WIN={pr0:0,pr1:0,c0:0,c1:0,nC:0,nP:0}; let manRaf=0;
 function allCols(){const extra=Math.max(3,8-MAN.cols.length);return [...MAN.cols,...Array.from({length:extra},()=>null)];}
 function renderMan(){ $('#mParts').value=MAN.parts; renderWindow(true); }
 function renderWindow(force){
@@ -963,7 +980,7 @@ function renderWindow(force){
   for(let ci=c0;ci<c1;ci++){const c=A[ci];const lab=c&&(String(c.pt).trim()||String(c.ax).trim())?esc([String(c.pt).trim(),String(c.ax).trim()].filter(Boolean).join(' ')):(ci+1);h+=`<th title="Column ${ci+1}"><span style="color:var(--ink);font-weight:600">${lab}</span>${c?`<button class="x" data-del="${ci}" title="Remove column" aria-label="Remove column ${ci+1}">×</button>`:''}</th>`;}
   h+=(rw?'<th></th>':'')+'</tr></thead><tbody>';
   const RK=rowKeys();
-  const row=(ri)=>{const f=RK[ri],spec=typeof f!=='number';let t=`<tr class="${spec?'spec':''} ${f==='usl'?'sep':''} ${f==='pt'||f==='ax'?'hdr':''}"><td class="rl">${spec?SPECLAB[f]:'Part '+(f+1)}</td>`+(lw?'<td></td>':'');
+  const row=(ri)=>{const f=RK[ri],spec=typeof f!=='number';let t=`<tr class="${spec?'spec':''} ${f==='usl'?'sep':''} ${f==='pt'||f==='ax'?'hdr':''}"><td class="rl${spec?'':' pn'}">${spec?SPECLAB[f]:`<input data-pn="${f}" value="${esc((MAN.pn||[])[f]||'')}" placeholder="Part ${f+1}" aria-label="Name of part ${f+1}">`}</td>`+(lw?'<td></td>':'');
     for(let ci=c0;ci<c1;ci++){const c=A[ci];const dis=c&&cellDisabled(c,f);let val=c?getCell(c,f):'';if(dis)val=f==='nom'?'0':'';
       t+=`<td><input ${f==='pt'||f==='ax'?'':'inputmode="decimal"'} data-r="${ri}" data-c="${ci}" value="${esc(val)}" ${dis?'disabled':''} placeholder="${c&&isTP(c)&&f==='ut'?'Tol ⌀':''}"></td>`;}
     return t+(rw?'<td></td>':'')+'</tr>';};
@@ -992,11 +1009,16 @@ function paintMan(only){
       else if(inp.placeholder){inp.placeholder='';inp.classList.remove('calc');}
       const bad=isOOT(v,lim.lsl,lim.usl);if(bad!==inp.classList.contains('oot')){inp.classList.toggle('oot',bad);inp.title=bad?'Out of tolerance':'';}}}
 }
-$('#mGrid').addEventListener('input',e=>{const t=e.target;if(t.tagName!=='INPUT')return;const ci=+t.dataset.c;ensureCols(ci+1);setCell(MAN.cols[ci],rowKeys()[+t.dataset.r],t.value.trim());saveManSoon();
+$('#mGrid').addEventListener('input',e=>{const t=e.target;if(t.tagName!=='INPUT')return;
+  if(t.dataset.pn!=null){MAN.pn=MAN.pn||[];MAN.pn[+t.dataset.pn]=t.value.trim();saveManSoon();syncMan();return;}
+  const ci=+t.dataset.c;ensureCols(ci+1);setCell(MAN.cols[ci],rowKeys()[+t.dataset.r],t.value.trim());saveManSoon();
   const pt=String(MAN.cols[ci].pt).trim();const only=new Set();MAN.cols.forEach((c,j)=>{if(j===ci||String(c.pt).trim()===pt)only.add(j);});paintMan(only);syncMan();});
 let saveT=null;function saveManSoon(){clearTimeout(saveT);saveT=setTimeout(saveMan,600);}
 $('#mGrid').addEventListener('change',e=>{if(e.target.tagName==='INPUT'&&+e.target.dataset.c>=MAN.cols.length-3)renderMan();});
-$('#mGrid').addEventListener('keydown',e=>{const t=e.target;if(t.tagName!=='INPUT'||e.key!=='Enter')return;e.preventDefault();let r=+t.dataset.r+(e.shiftKey?-1:1);
+$('#mGrid').addEventListener('keydown',e=>{const t=e.target;if(t.tagName!=='INPUT'||e.key!=='Enter')return;e.preventDefault();
+  if(t.dataset.pn!=null){let i=+t.dataset.pn+(e.shiftKey?-1:1);if(i<0)return;if(i>=MAN.parts){MAN.parts++;saveMan();renderMan();}
+    const g=$('#mGrid');let n=g.querySelector(`input[data-pn="${i}"]`);if(!n){g.scrollTop+=e.shiftKey?-RH*5:RH*5;renderWindow(false);n=g.querySelector(`input[data-pn="${i}"]`);}
+    if(n){n.focus();n.select();const rb=n.getBoundingClientRect(),gb=g.getBoundingClientRect();if(rb.bottom>gb.bottom-4)g.scrollTop+=RH;}return;}let r=+t.dataset.r+(e.shiftKey?-1:1);
   if(r>=rowKeys().length){MAN.parts++;saveMan();renderMan();}
   const g=$('#mGrid'); const want=()=>cellAt(r,t.dataset.c);
   let n=want(); if(!n&&r>=SPEC.length){g.scrollTop+=e.shiftKey?-RH*5:RH*5;renderWindow(false);n=want();}
@@ -1036,6 +1058,12 @@ function recordsFromBlock(B){
   return recs.length?recs:null;
 }
 $('#mGrid').addEventListener('paste',e=>{const t=e.target;if(t.tagName!=='INPUT')return;const txt=(e.clipboardData||window.clipboardData).getData('text');
+  if(t.dataset.pn!=null&&/[\t\n]/.test(txt.trim())){e.preventDefault();
+    const B=txt.replace(/\r/g,'').replace(/\n+$/,'').split('\n').map(l=>l.split('\t')); const i0=+t.dataset.pn; MAN.pn=MAN.pn||[];
+    if(i0+B.length>MAN.parts)MAN.parts=i0+B.length;
+    const nc=Math.max(...B.map(r=>r.length)); if(nc>1)ensureCols(nc-1);
+    B.forEach((row,i)=>{MAN.pn[i0+i]=(row[0]||'').trim(); for(let j=1;j<row.length;j++){const c=MAN.cols[j-1];if(c&&!cellDisabled(c,i0+i))setCell(c,i0+i,(row[j]||'').trim());}});
+    saveMan();renderMan();syncMan();toast(nc>1?`Pasted ${B.length} parts with names and values`:`Pasted ${B.length} part names`);return;}
   if(!/[\t\n]/.test(txt.trim()))return; e.preventDefault();
   const B=txt.replace(/\r/g,'').replace(/\n+$/,'').split('\n').map(l=>l.split('\t'));
   const r0=+t.dataset.r,c0=+t.dataset.c;
@@ -1056,20 +1084,21 @@ function manualChars(){
   const out=[]; buildGroups();
   MAN.cols.forEach(c=>{if(!String(c.pt).trim()&&!String(c.ax).trim()&&!c.v.some(v=>parseNum(v)!=null))return;
     const raw=[];
-    for(let i=0;i<MAN.parts;i++){const v=c.v[i];if(parseNum(v)!=null)raw.push(String(v).trim().replace(',','.'));else if(isTP(c)){const k=tpCalc(c,i);if(k!=null)raw.push(k.toFixed(4));}}
+    const parts=[], named=(MAN.pn||[]).some(Boolean);
+    for(let i=0;i<MAN.parts;i++){const v=c.v[i];if(parseNum(v)!=null){raw.push(String(v).trim().replace(',','.'));parts.push((MAN.pn||[])[i]||'');}else if(isTP(c)){const k=tpCalc(c,i);if(k!=null){raw.push(k.toFixed(4));parts.push((MAN.pn||[])[i]||'');}}}
     const {lsl,usl}=manLimits(c);
     const name=[String(c.pt).trim(),String(c.ax).trim()].filter(Boolean).join(' · ')||'Column '+(MAN.cols.indexOf(c)+1);
-    out.push({name,lsl,usl,values:raw.map(parseNum),dec:decimalsOf(raw)});});
+    out.push({name,lsl,usl,values:raw.map(parseNum),dec:decimalsOf(raw),parts:named?parts.map((p,k)=>p||String(k+1)):null});});
   return out;
 }
 let manT=null;
 let manSig='';
-function syncMan(){clearTimeout(manT);manT=setTimeout(()=>{const ch=manualChars().filter(c=>c.values.length);const sig=JSON.stringify(ch.map(c=>[c.name,c.lsl,c.usl,c.values]));if(sig===manSig)return;manSig=sig;
+function syncMan(){clearTimeout(manT);manT=setTimeout(()=>{const ch=manualChars().filter(c=>c.values.length);const sig=JSON.stringify(ch.map(c=>[c.name,c.lsl,c.usl,c.values,c.parts]));if(sig===manSig)return;manSig=sig;
   if(!ch.length){return;} SOURCES=['manual entry']; setChars(ch);
   const vals=ch.reduce((s,c)=>s+c.values.length,0); msg(`Manual entry: <b>${ch.length}</b> characteristic${ch.length>1?'s':''}, ${vals} values. The report below updates as you type.`,'ok');},450);}
 /* ================= review ================= */
 function setChars(list){
-  CHARS=list.map((c,i)=>({id:i,name:c.name,lsl:c.lsl,usl:c.usl,values:c.values.filter(v=>v!=null&&isFinite(v)),dec:c.dec,on:true}));
+  CHARS=list.map((c,i)=>{const ok=c.values.map(v=>v!=null&&isFinite(v));return {id:i,name:c.name,lsl:c.lsl,usl:c.usl,values:c.values.filter((v,k)=>ok[k]),parts:c.parts?c.parts.filter((p,k)=>ok[k]):null,group:c.group||null,dec:c.dec,on:true};});
   renderReview(); recalc(); steps(3);
 }
 function renderReview(){
@@ -1077,7 +1106,7 @@ function renderReview(){
   const t=$('#reviewTbl');
   t.innerHTML=`<thead><tr><th class="l" style="width:34px"><input type="checkbox" id="allOn" checked aria-label="Include all"></th><th class="l">Characteristic</th><th>LSL</th><th>USL</th><th>n</th><th>Mean</th><th class="l">Values</th><th class="l">Result</th></tr></thead><tbody>`+
    CHARS.map(c=>`<tr data-id="${c.id}" class="${c.on?'':'off'}"><td class="l"><input type="checkbox" data-f="on" ${c.on?'checked':''} aria-label="Include"></td>
-    <td class="l"><input type="text" data-f="name" value="${esc(c.name)}"></td>
+    <td class="l"><input type="text" data-f="name" value="${esc(c.name)}">${c.group?`<div style="font-size:11px;color:var(--muted);margin-top:2px">${esc(c.group)}${c.parts?` · ${c.parts.filter(Boolean).length} named parts`:''}</div>`:c.parts?`<div style="font-size:11px;color:var(--muted);margin-top:2px">${c.parts.filter(Boolean).length} named parts</div>`:''}</td>
     <td><input type="number" step="any" data-f="lsl" value="${c.lsl??''}" placeholder="—"></td>
     <td><input type="number" step="any" data-f="usl" value="${c.usl??''}" placeholder="—"></td>
     <td class="num">${c.values.length}</td><td class="num">${c.values.length?mean(c.values).toFixed(Math.min((c.dec??3)+1,6)):'—'}</td>
@@ -1182,7 +1211,8 @@ function ctrlCfg(r,th){
   if(r.lsl!=null)ds.push(hl(r.lsl,'LSL',th.crit,[2,3]));
   if(r.usl!=null)ds.push(hl(r.usl,'USL',th.crit,[2,3]));
   const all=[...p,r.ucl,r.lcl,...(r.lsl!=null?[r.lsl]:[]),...(r.usl!=null?[r.usl]:[])].filter(isFinite); const ymn=Math.min(...all),ymx=Math.max(...all),yp=(ymx-ymn)*0.06||1;
-  return {type:'line',data:{labels:p.map((_,i)=>i+1),datasets:ds},options:{responsive:true,maintainAspectRatio:false,animation:false,layout:{padding:{right:38}},interaction:{mode:'index',intersect:false},
+  const indiv=r.ptsLabel!=='Subgroup mean'&&r.parts;
+  return {type:'line',data:{labels:p.map((_,i)=>indiv?String(r.parts[i]||i+1):i+1),datasets:ds},options:{responsive:true,maintainAspectRatio:false,animation:false,layout:{padding:{right:38}},interaction:{mode:'index',intersect:false},
     scales:{x:{grid:{display:false},ticks:{maxTicksLimit:10,autoSkip:true,color:th.muted,font:{family:FONT}},title:{display:true,text:r.ptsLabel==='Subgroup mean'?'Subgroup':'Part (production order)',color:th.muted,font:{family:FONT}}},
             y:{min:ymn-yp,max:ymx+yp,grid:{color:th.grid},border:{display:false},ticks:{maxTicksLimit:7,includeBounds:false,color:th.muted,font:{family:FONT},callback:v=>+v.toFixed(dd)}}},
     plugins:{legend:{display:false},tooltip:{filter:i=>i.datasetIndex===0,callbacks:{label:it=>{const i=it.dataIndex;const why=[];if(r.rules.out.includes(i))why.push('beyond 3σ');if(r.rules.run.includes(i))why.push('run of 8');if(r.rules.trend.includes(i))why.push('trend');if(isOOT(it.raw,r.lsl,r.usl))why.unshift('OUT OF TOLERANCE');return `${f(it.raw)}${why.length?'  ⚠ '+why.join(', '):''}`;}}}}},
@@ -1275,12 +1305,13 @@ function ctrlCfgAll(r,th){ // individuals chart over every part; removed parts d
   if(r.lsl!=null)ds.push(hl(r.lsl,'LSL',th.crit,[2,3]));
   if(r.usl!=null)ds.push(hl(r.usl,'USL',th.crit,[2,3]));
   const vals=[...all,r.ucl,r.lcl,...(r.lsl!=null?[r.lsl]:[]),...(r.usl!=null?[r.usl]:[])].filter(isFinite); const ymn=Math.min(...vals),ymx=Math.max(...vals),yp=(ymx-ymn)*0.06||1;
-  return {type:'line',data:{labels:all.map((_,i)=>i+1),datasets:ds},options:{responsive:true,maintainAspectRatio:false,animation:false,layout:{padding:{right:38}},interaction:{mode:'nearest',intersect:false,axis:'x'},
+  return {type:'line',data:{labels:all.map((_,i)=>pLab(r,i)),datasets:ds},options:{responsive:true,maintainAspectRatio:false,animation:false,layout:{padding:{right:38}},interaction:{mode:'nearest',intersect:false,axis:'x'},
     scales:{x:{grid:{display:false},ticks:{maxTicksLimit:10,autoSkip:true,color:th.muted,font:{family:FONT}},title:{display:true,text:'Part (production order)',color:th.muted,font:{family:FONT}}},
             y:{min:ymn-yp,max:ymx+yp,grid:{color:th.grid},border:{display:false},ticks:{maxTicksLimit:7,includeBounds:false,color:th.muted,font:{family:FONT},callback:v=>+v.toFixed(dd)}}},
-    plugins:{legend:{display:false},tooltip:{filter:i=>i.datasetIndex<=1&&i.raw!=null,callbacks:{title:it=>'Part '+(it[0].dataIndex+1),label:it=>it.datasetIndex===1?`${f(it.raw)}  (removed — click to re-add)`:`${f(it.raw)}${isOOT(it.raw,r.lsl,r.usl)?'  ⚠ OUT OF TOLERANCE':''}  (click to remove)`}}}},
+    plugins:{legend:{display:false},tooltip:{filter:i=>i.datasetIndex<=1&&i.raw!=null,callbacks:{title:it=>r.partsAll?pLab(r,it[0].dataIndex):'Part '+(it[0].dataIndex+1),label:it=>it.datasetIndex===1?`${f(it.raw)}  (removed — click to re-add)`:`${f(it.raw)}${isOOT(it.raw,r.lsl,r.usl)?'  ⚠ OUT OF TOLERANCE':''}  (click to remove)`}}}},
     plugins:[refLabels]};
 }
+const pLab=(r,i)=>(r.partsAll&&r.partsAll[i])?String(r.partsAll[i]):String(i+1);
 function valsGrid(r){
   const all=r.all||r.values, ex=new Set(r.ex||[]); const f=v=>fmtV(v,{dec:Math.max(0,r.dec-1)});
   const k=all.filter((v,i)=>!ex.has(i)&&isOOT(v,r.lsl,r.usl)).length, idx=IDX();
@@ -1288,7 +1319,7 @@ function valsGrid(r){
     ${k?`<span class="k">${k} out of tolerance</span>`:''}
     ${ex.size?`<span class="exn">${ex.size} removed · ${idx} ${i2(r.orig&&r.orig.C)} → <b>${i2(r.C)}</b></span><button class="small" data-restore="${esc(r.name)}">Re-add all</button>`:''}
     <span class="vhint">Click a value — or a point on the control chart — to remove it from the calculation; click again to re-add.</span></div>
-    <div class="vgrid" data-name="${esc(r.name)}">${all.map((v,i)=>`<div data-i="${i}" class="${ex.has(i)?'ex':isOOT(v,r.lsl,r.usl)?'oot':''}" title="Part ${i+1}: click to ${ex.has(i)?'re-add':'remove'}"><i>${i+1}</i>${f(v)}</div>`).join('')}</div></div>`;
+    <div class="vgrid${r.partsAll?' named':''}" data-name="${esc(r.name)}">${all.map((v,i)=>`<div data-i="${i}" class="${ex.has(i)?'ex':isOOT(v,r.lsl,r.usl)?'oot':''}" title="${esc(r.partsAll?pLab(r,i):'Part '+(i+1))}: click to ${ex.has(i)?'re-add':'remove'}"><i>${esc(pLab(r,i))}</i>${f(v)}</div>`).join('')}</div></div>`;
 }
 function drawPair(el,r,th){
   (el._charts||[]).forEach(c=>{try{c.destroy();}catch(e){}}); el._charts=[];
@@ -1345,7 +1376,7 @@ function renderTable(){
   $('#tOos').checked=TF.oos; if($('#tq').value!==TF.q)$('#tq').value=TF.q;
   // filter
   const q=TF.q.trim().toLowerCase();
-  let R=RESULTS.filter(r=>(!q||r.name.toLowerCase().includes(q))&&(TF.status==='all'||r.status===TF.status)&&(TF.axis==='all'||axisOf(r.name)===TF.axis)&&(!TF.oos||r.oos>0));
+  let R=RESULTS.filter(r=>(!q||r.name.toLowerCase().includes(q)||(r.group&&r.group.toLowerCase().includes(q)))&&(TF.status==='all'||r.status===TF.status)&&(TF.axis==='all'||axisOf(r.name)===TF.axis)&&(!TF.oos||r.oos>0));
   // sort
   const key=TF.sort, dir=TF.dir, val=r=>key==='C'?(r.C??99):key==='adp'?(r.ad?r.ad.p:null):key==='status'?({crit:0,warn:1,good:2,na:3}[r.status]):r[key];
   R.sort((a,b)=>{const x=val(a),y=val(b);if(typeof x==='string'||typeof y==='string')return dir*String(x??'').localeCompare(String(y??''),undefined,{numeric:true});return dir*((x??Infinity)-(y??Infinity));});
@@ -1450,14 +1481,14 @@ async function downloadPdf(){
     const h1=renderImage(histCfg(r,PRINT),480,330), c1=renderImage(ctrlCfg(r,PRINT),480,330); const iw=(CW-6)/2, ih=iw*330/480;
     doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(82,81,78); doc.text('DISTRIBUTION VS SPECIFICATION',M,y); doc.text(r.ptsLabel==='Subgroup mean'?'XBAR CONTROL CHART':'INDIVIDUALS CONTROL CHART',M+iw+6,y); y+=2;
     doc.addImage(h1,'JPEG',M,y,iw,ih); doc.addImage(c1,'JPEG',M+iw+6,y,iw,ih); y+=ih+8;
-    { const per=10, vals=r.all||r.values, exS=new Set(r.ex||[]), fv=v=>fmtV(v,{dec:Math.max(0,r.dec-1)}); const k=vals.filter((v,i)=>!exS.has(i)&&isOOT(v,r.lsl,r.usl)).length; const rowsV=[];
-      for(let i=0;i<vals.length;i+=per){rowsV.push(vals.slice(i,i+per).map((v,j)=>({content:fv(v),ex:exS.has(i+j),oot:!exS.has(i+j)&&isOOT(v,r.lsl,r.usl),idx:i+j+1})));}
+    { const named=!!r.partsAll, per=named?6:10, vals=r.all||r.values, exS=new Set(r.ex||[]), fv=v=>fmtV(v,{dec:Math.max(0,r.dec-1)}); const k=vals.filter((v,i)=>!exS.has(i)&&isOOT(v,r.lsl,r.usl)).length; const rowsV=[];
+      for(let i=0;i<vals.length;i+=per){rowsV.push(vals.slice(i,i+per).map((v,j)=>({content:named?`${pdfTxt(pLab(r,i+j))}  ${fv(v)}`:fv(v),ex:exS.has(i+j),oot:!exS.has(i+j)&&isOOT(v,r.lsl,r.usl),idx:i+j+1})));}
       doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(82,81,78); doc.text(`MEASURED VALUES (n ${vals.length})`,M,y);
       if(k){doc.setTextColor(176,42,42); doc.text(`${k} out of tolerance (red)`,W-M,y,{align:'right'});}
       const maxRows=Math.min(rowsV.length,12); const nm=pdfTxt(r.name);
       const lim=pdfTxt(`LSL ${r.lsl??'-'} / USL ${r.usl??'-'}`);
       doc.autoTable({startY:y+1.5,margin:{left:M,right:M},theme:'grid',
-        head:[['Characteristic','Parts',...Array.from({length:per},(_,j)=>String(j+1))]],
+        head:[['Characteristic','#',...Array.from({length:per},(_,j)=>named?'Part  value':String(j+1))]],
         body:rowsV.slice(0,maxRows).map((rw,ri)=>[ri===0?nm:'',`${ri*per+1}-${ri*per+rw.length}`,...rw.map(c=>c.content),...Array(per-rw.length).fill('')]),
         styles:{font:'helvetica',fontSize:7.5,cellPadding:1,halign:'right',lineColor:[225,224,217],lineWidth:0.1,textColor:[11,11,11]},
         headStyles:{fillColor:[242,241,237],textColor:[82,81,78],fontStyle:'bold',halign:'right'},
@@ -1509,7 +1540,7 @@ async function downloadXlsx(){
   R.filter(r=>r.sugg.length).forEach(r=>r.sugg.forEach((s,i)=>rec.push([r.name,STAT[r.status].txt,num(r.C),i+1,s.t,s.d])));
   const ws2=XLSX.utils.aoa_to_sheet(rec); ws2['!cols']=[{wch:28},{wch:12},{wch:7},{wch:4},{wch:40},{wch:120}]; XLSX.utils.book_append_sheet(wb,ws2,'Recommendations');
   const maxN=Math.max(...R.map(r=>(r.all||r.values).length)); const data=[['',...R.map(r=>r.name)],['LSL',...R.map(r=>r.lsl??'')],['USL',...R.map(r=>r.usl??'')]];
-  for(let i=0;i<maxN;i++)data.push([i+1,...R.map(r=>(r.all||r.values)[i]??'')]);
+  for(let i=0;i<maxN;i++){const pn=(R.find(r=>r.partsAll&&r.partsAll[i])||{}).partsAll; data.push([pn?pn[i]:i+1,...R.map(r=>(r.all||r.values)[i]??'')]);}
   const ws3=XLSX.utils.aoa_to_sheet(data);
   const GREY={font:{color:{rgb:'A09E98'},italic:true,strike:true},fill:{patternType:'solid',fgColor:{rgb:'EEEDE9'}}};
   R.forEach((r,j)=>{st(ws3,0,j+1,HEAD);const ex=new Set(r.ex||[]);(r.all||r.values).forEach((v,i)=>{if(ex.has(i))st(ws3,3+i,j+1,GREY);else if(isOOT(v,r.lsl,r.usl))st(ws3,3+i,j+1,RED);});});
